@@ -1,0 +1,1587 @@
+<!DOCTYPE html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>算力尖塔 · 卡牌构筑 Roguelike</title><style>*{box-sizing:border-box;margin:0;padding:0}
+:root{--bg:#0d0b12;--panel:#1a1522;--panel2:#241c2e;--gold:#e8c26a;--red:#d9534f;--blue:#4aa3df;--green:#5cb85c;--txt:#eee4d3;--dim:#9a8f80;--atk:#b0413e;--skl:#2f6f9f;--pow:#c48a1e;--cur:#5a3d6b}
+html,body{height:100%;background:var(--bg);color:var(--txt);font-family:"PingFang SC","Microsoft YaHei","Noto Sans CJK SC","Source Han Sans SC",sans-serif;overflow:hidden;user-select:none;-webkit-user-select:none}
+body{background:radial-gradient(ellipse at 50% 0%,#2a1d35 0%,#0d0b12 60%)}
+#app{position:relative;width:100vw;height:100vh;overflow:hidden}
+button{font-family:inherit;cursor:pointer}
+.btn{background:linear-gradient(#5a4020,#3a2810);color:var(--gold);border:2px solid #b8913f;border-radius:8px;padding:10px 22px;font-size:17px;font-weight:bold;letter-spacing:1px;box-shadow:0 3px 0 #1a1008,0 0 12px rgba(232,194,106,.15);transition:.12s}
+.btn:hover{filter:brightness(1.25);transform:translateY(-1px)}
+.btn:disabled{filter:grayscale(1) brightness(.6);cursor:not-allowed;transform:none}
+.btn.small{padding:5px 12px;font-size:14px}
+.btn.red{background:linear-gradient(#7a2420,#4a1410);border-color:#d96a5f;color:#ffd9cc}
+.btn.blue{background:linear-gradient(#20507a,#10304a);border-color:#5fa8d9;color:#d9f0ff}
+.topbar{position:absolute;top:0;left:0;right:0;height:44px;background:linear-gradient(#211a2a,#15101b);border-bottom:2px solid #3d2f4a;display:flex;align-items:center;gap:16px;padding:0 12px;z-index:50;font-size:15px}
+.topbar .it{display:flex;align-items:center;gap:4px;white-space:nowrap}
+.topbar .hp{color:#ff7b72;font-weight:bold}.topbar .gd{color:var(--gold);font-weight:bold}
+.topbar .relics{display:flex;gap:2px;flex:1;overflow-x:auto;overflow-y:hidden;scrollbar-width:none}
+.relic{width:32px;height:32px;border-radius:50%;background:radial-gradient(#3d3050,#1d1626);border:1px solid #8a7340;display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0;position:relative}
+.relic .cnt{position:absolute;bottom:-3px;right:-3px;font-size:10px;background:#000;border-radius:6px;padding:0 3px;color:#fff}
+.relic.flash{animation:flash .5s}
+@keyframes flash{50%{transform:scale(1.4);box-shadow:0 0 14px var(--gold)}}
+.potions{display:flex;gap:4px}
+.potion{width:30px;height:30px;border-radius:8px;border:1px dashed #555;display:flex;align-items:center;justify-content:center;font-size:18px;background:#120e18}
+.potion.has{border:1px solid #6a9;cursor:pointer;background:#1b2a24}
+.potion.has:hover{filter:brightness(1.4)}
+.screen{position:absolute;top:44px;left:0;right:0;bottom:0;overflow:auto}
+.screen.full{top:0}
+.center{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;min-height:100%;padding:20px;text-align:center}
+.title{font-size:clamp(34px,6vw,64px);font-weight:900;color:var(--gold);text-shadow:0 0 20px #a8742a,0 4px 0 #3a2010;letter-spacing:4px}
+.sub{color:var(--dim);font-size:15px;max-width:640px;line-height:1.6}
+h2{color:var(--gold);font-size:26px;text-shadow:0 2px 0 #000}
+.panel{background:linear-gradient(var(--panel2),var(--panel));border:2px solid #4a3a5a;border-radius:12px;padding:16px;box-shadow:0 8px 24px rgba(0,0,0,.5)}
+.chars{display:flex;gap:24px;flex-wrap:wrap;justify-content:center}
+.charcard{width:300px;cursor:pointer;transition:.15s;text-align:left}
+.charcard:hover{transform:translateY(-4px);border-color:var(--gold)}
+.charcard .portrait{font-size:72px;text-align:center;filter:drop-shadow(0 0 12px rgba(232,194,106,.4))}
+.charcard h3{color:var(--gold);font-size:22px;text-align:center;margin:6px 0}
+.charcard p{font-size:14px;line-height:1.55;color:#d6cbb8}
+/* cards */
+.card{position:relative;width:150px;height:214px;border-radius:12px;padding:6px;flex-shrink:0;cursor:pointer;transition:transform .12s,box-shadow .12s;color:#fff;font-size:13px;box-shadow:0 4px 10px rgba(0,0,0,.6)}
+.card.attack{background:linear-gradient(160deg,#c45450,#6e1f1d)}
+.card.skill{background:linear-gradient(160deg,#3f8bc4,#1a3d5e)}
+.card.power{background:linear-gradient(160deg,#d9a33a,#7a5010)}
+.card.curse,.card.status{background:linear-gradient(160deg,#6b4d7d,#2b1d35)}
+.card .frame{position:absolute;inset:3px;border-radius:10px;border:3px solid #8a8a8a;pointer-events:none}
+.card.common .frame{border-color:#a9a9a9}.card.starter .frame{border-color:#8f8f8f}
+.card.uncommon .frame{border-color:#5fb0ff;box-shadow:inset 0 0 8px #5fb0ff88}
+.card.rare .frame{border-color:#ffd35a;box-shadow:inset 0 0 12px #ffd35aaa}
+.card .cost{position:absolute;top:-8px;left:-8px;width:34px;height:34px;border-radius:50%;background:radial-gradient(#ffe7a0,#d08a1a);color:#2a1800;font-weight:900;font-size:19px;display:flex;align-items:center;justify-content:center;border:2px solid #fff3c4;z-index:2;text-shadow:none}
+.card .cost.cheap{color:#0a6a10}
+.card .nm{text-align:center;font-weight:bold;font-size:14px;margin:4px 6px 0 18px;background:rgba(0,0,0,.35);border-radius:6px;padding:2px 3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.card.up .nm{color:#8dff8d}
+.card .art{height:64px;margin:4px 8px;border-radius:6px;background:rgba(0,0,0,.35);display:flex;align-items:center;justify-content:center;font-size:36px;border:1px solid rgba(255,255,255,.15)}
+.card .tp{text-align:center;font-size:11px;color:#ddd;margin-top:-2px}
+.card .ds{margin:4px 8px;background:rgba(0,0,0,.38);border-radius:6px;padding:5px;min-height:72px;font-size:12.5px;line-height:1.4;text-align:center}
+.card .ds b{color:#ffe08a}
+.card .ds .mod-up{color:#7dff7d}.card .ds .mod-dn{color:#ff8a8a}
+.card.unplay{filter:brightness(.6)}
+.card.sel{transform:translateY(-30px) scale(1.08)!important;box-shadow:0 0 20px 5px #ffe08a;z-index:30}
+.hand{position:absolute;bottom:8px;left:50%;transform:translateX(-50%);display:flex;justify-content:center;align-items:flex-end;height:240px;width:min(1000px,96vw)}
+.hand .card{margin:0 -14px}
+.hand .card:hover{transform:translateY(-24px) scale(1.1);z-index:20}
+.cardgrid{display:flex;flex-wrap:wrap;gap:16px;justify-content:center;padding:10px}
+.cardgrid .card:hover{transform:scale(1.06);z-index:5}
+/* combat */
+.combat{position:absolute;top:44px;left:0;right:0;bottom:0}
+.field{position:absolute;top:10px;left:0;right:0;height:calc(100% - 260px);display:flex;align-items:flex-end;justify-content:space-between;padding:0 4vw}
+.ent{position:relative;display:flex;flex-direction:column;align-items:center;gap:4px;min-width:130px;transition:transform .1s}
+.ent .sprite{font-size:84px;line-height:1;filter:drop-shadow(0 6px 6px rgba(0,0,0,.7));transition:.15s}
+.ent.big .sprite{font-size:120px}
+.ent .nm{font-size:14px;font-weight:bold;color:#f3e6cf;text-shadow:0 1px 0 #000}
+.hpbar{width:130px;height:14px;background:#2a0d0d;border:1px solid #000;border-radius:7px;position:relative;overflow:hidden}
+.hpbar .f{position:absolute;left:0;top:0;bottom:0;background:linear-gradient(#e2534a,#9a221c);transition:width .3s}
+.hpbar .pz{position:absolute;top:0;bottom:0;background:#6ac36a;opacity:.85}
+.hpbar .t{position:absolute;inset:0;font-size:11px;text-align:center;line-height:13px;font-weight:bold;text-shadow:0 0 2px #000}
+.blk{position:absolute;left:-14px;top:50%;transform:translateY(-50%);background:radial-gradient(#7fc2ff,#2a6aa8);border:2px solid #cfe8ff;width:26px;height:26px;border-radius:6px 6px 13px 13px;font-size:12px;font-weight:900;display:flex;align-items:center;justify-content:center;z-index:2}
+.hpwrap{position:relative}
+.hpwrap.hasblk .hpbar{border-color:#7fc2ff;box-shadow:0 0 6px #4aa3df}
+.stats{display:flex;flex-wrap:wrap;gap:2px;max-width:150px;justify-content:center;min-height:22px}
+.st{font-size:12px;background:rgba(0,0,0,.55);border-radius:5px;padding:1px 4px;border:1px solid #444;cursor:help}
+.st.bad{border-color:#a44}.st.good{border-color:#4a4}
+.intent{font-size:16px;font-weight:bold;background:rgba(0,0,0,.55);border-radius:8px;padding:2px 8px;border:1px solid #555;min-height:26px;cursor:help;white-space:nowrap}
+.intent.atk{color:#ff8a7a;border-color:#a44}
+.enemies{display:flex;gap:3vw;align-items:flex-end}
+.enemy{cursor:pointer;padding:6px;border-radius:12px}
+.targeting .enemy:hover,.enemy.tgt{background:rgba(255,80,60,.15);box-shadow:0 0 0 2px #ff6a5a}
+.ent.dead{opacity:0;transform:scale(.6) translateY(30px);pointer-events:none;transition:.5s}
+.hit .sprite{animation:hit .3s}
+@keyframes hit{20%{transform:translateX(-10px) rotate(-6deg);filter:brightness(2) drop-shadow(0 0 10px red)}60%{transform:translateX(8px)}}
+.lunge .sprite{animation:lunge .3s}
+@keyframes lunge{40%{transform:translateX(-40px) scale(1.1)}}
+.plunge .sprite{animation:plunge .3s}
+@keyframes plunge{40%{transform:translateX(40px) scale(1.1)}}
+.floater{position:fixed;font-weight:900;font-size:30px;pointer-events:none;z-index:200;text-shadow:0 2px 0 #000,0 0 6px #000;animation:float 1s forwards}
+.floater.dmg{color:#ff5a4a}.floater.blkf{color:#7fc2ff}.floater.heal{color:#6f6}.floater.st{color:#ffd35a;font-size:18px}
+@keyframes float{0%{opacity:0;transform:translateY(0) scale(.6)}15%{opacity:1;transform:translateY(-10px) scale(1.2)}100%{opacity:0;transform:translateY(-70px) scale(1)}}
+.energy{position:absolute;left:24px;bottom:150px;width:78px;height:78px;border-radius:50%;background:radial-gradient(#ffe88a,#d07a10 70%,#6a3000);border:3px solid #fff0b0;display:flex;align-items:center;justify-content:center;font-size:28px;font-weight:900;color:#2a1000;box-shadow:0 0 24px #ffb84a;z-index:10}
+.pile{position:absolute;bottom:40px;width:66px;height:84px;border-radius:8px;background:linear-gradient(#3a2d4a,#1f1729);border:2px solid #6a5580;display:flex;flex-direction:column;align-items:center;justify-content:center;font-size:12px;cursor:pointer;z-index:10}
+.pile b{font-size:22px;color:var(--gold)}
+.pile.draw{left:20px}.pile.disc{right:20px}.pile.exh{right:20px;bottom:136px;height:50px;width:66px}
+.endturn{position:absolute;right:110px;bottom:150px;z-index:10}
+.turnbanner{position:absolute;top:40%;left:0;right:0;text-align:center;font-size:44px;font-weight:900;color:var(--gold);text-shadow:0 0 20px #000,0 3px 0 #000;pointer-events:none;animation:banner 1s forwards;z-index:100;background:linear-gradient(90deg,transparent,rgba(0,0,0,.6),transparent)}
+@keyframes banner{0%{opacity:0;transform:scaleY(0)}20%{opacity:1;transform:scaleY(1)}80%{opacity:1}100%{opacity:0}}
+.hint{position:absolute;top:6px;left:50%;transform:translateX(-50%);background:rgba(0,0,0,.6);padding:4px 12px;border-radius:8px;font-size:14px;color:#ffd;z-index:20}
+/* map */
+.mapwrap{position:relative;margin:0 auto;width:min(760px,100vw)}
+.mapnode{position:absolute;width:46px;height:46px;margin:-23px 0 0 -23px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:24px;background:#2a2234;border:2px solid #555;transition:.15s;z-index:2}
+.mapnode.avail{border-color:var(--gold);cursor:pointer;animation:pulse 1.2s infinite;background:#3a2e1a}
+.mapnode.avail:hover{transform:scale(1.25)}
+.mapnode.visited{background:#1e3a26;border-color:#5cb85c;opacity:.85}
+.mapnode.cur{box-shadow:0 0 0 4px #5cb85c,0 0 20px #5cb85c}
+.mapnode.locked{opacity:.45}
+@keyframes pulse{50%{box-shadow:0 0 16px 4px rgba(232,194,106,.7)}}
+.maplegend{position:fixed;right:10px;top:56px;font-size:13px;line-height:1.8;z-index:5;background:rgba(20,15,27,.9);padding:8px 12px;border-radius:8px;border:1px solid #4a3a5a}
+.maphead{position:sticky;top:0;z-index:4;text-align:center;padding:8px;background:linear-gradient(#0d0b12,rgba(13,11,18,0))}
+/* modal */
+.modal{position:fixed;inset:0;background:rgba(5,3,8,.86);z-index:150;display:flex;flex-direction:column;align-items:center;padding:20px 10px;overflow:auto;gap:12px}
+.modal h2{margin-top:10px}
+.tip{position:fixed;z-index:300;max-width:320px;max-height:96vh;overflow:hidden;background:rgba(18,14,24,.97);border:1px solid #8a7340;border-radius:8px;padding:8px 10px;font-size:13px;line-height:1.5;pointer-events:none;box-shadow:0 4px 16px #000}
+.tip .k{color:var(--gold);font-weight:bold}
+.tip .src{color:#8fb8d9;font-size:11px;margin-top:4px}
+.tip .fl{color:#c9b9a0;font-style:italic;margin-top:4px;border-top:1px solid #3a2f45;padding-top:4px}
+.rewards{display:flex;flex-direction:column;gap:10px;width:min(420px,92vw)}
+.rw{display:flex;align-items:center;gap:10px;background:#2a2234;border:1px solid #5a4a6a;border-radius:8px;padding:10px 14px;cursor:pointer;font-size:16px;text-align:left}
+.rw:hover{background:#3a2e48;border-color:var(--gold)}
+.rw .ic{font-size:26px}
+.shopgrid{display:flex;flex-wrap:wrap;gap:18px;justify-content:center;max-width:1000px}
+.shopitem{display:flex;flex-direction:column;align-items:center;gap:6px}
+.price{color:var(--gold);font-weight:bold}.price.no{color:#a55}
+.sold{opacity:.25;pointer-events:none}
+.bigrelic{width:80px;height:80px;font-size:42px;border-radius:50%;background:radial-gradient(#4a3a60,#1d1626);border:2px solid #b8913f;display:flex;align-items:center;justify-content:center;cursor:pointer}
+.event{max-width:720px;text-align:left}
+.event .pic{font-size:80px;text-align:center}
+.event p{line-height:1.7;margin:10px 0;color:#e8dcc6}
+.opts{display:flex;flex-direction:column;gap:8px;margin-top:14px}
+.opt{background:#2a2234;border:1px solid #6a5580;border-radius:8px;padding:10px 14px;text-align:left;color:var(--txt);font-size:15px}
+.opt:hover{border-color:var(--gold);background:#3a2e48}
+.opt:disabled{opacity:.4;cursor:not-allowed}
+.opt .g{color:#7d7}.opt .r{color:#f88}
+.srclist{max-width:900px;text-align:left;line-height:1.7;font-size:14px}
+.srclist a{color:#8fc8ff}
+.srclist li{margin-left:20px}
+.summary td{padding:4px 14px;text-align:left}.summary td:first-child{color:var(--dim)}
+.kw{max-width:760px;text-align:left;display:grid;grid-template-columns:120px 1fr;gap:6px 12px;font-size:14px}
+.kw .k{color:var(--gold);font-weight:bold}
+.factbox{font-size:12.5px;color:#cbbfa8;max-width:640px;line-height:1.6;background:rgba(0,0,0,.3);border-left:3px solid #8a7340;padding:8px 12px;text-align:left}
+@media (max-width:820px),(max-height:620px){
+ .card{width:104px;height:152px;font-size:11px;padding:4px}
+ .card .art{height:34px;font-size:22px;margin:2px 6px}
+ .card .ds{font-size:10.5px;min-height:50px;padding:3px;margin:2px 5px;line-height:1.3}
+ .card .nm{font-size:11.5px}
+ .card .cost{width:26px;height:26px;font-size:15px}
+ .hand{height:170px}.hand .card{margin:0 -16px}
+ .field{height:calc(100% - 300px);padding:0 2vw}
+ .ent .sprite{font-size:54px}.ent.big .sprite{font-size:76px}
+ .ent{min-width:90px}.hpbar{width:92px}
+ .energy{width:56px;height:56px;font-size:20px;bottom:180px;left:8px}
+ .endturn{right:8px;bottom:182px}
+ .pile{width:48px;height:56px;bottom:178px}.pile.draw{left:70px}.pile.disc{right:120px}.pile.exh{display:none}
+ .topbar{gap:8px;font-size:13px}.relic{width:26px;height:26px;font-size:14px}
+ .maplegend{display:none}
+}
+.combat{background:radial-gradient(ellipse at 50% 85%,rgba(120,70,40,.25),transparent 60%),linear-gradient(180deg,#120d18 0%,#1b1422 55%,#2a1d1a 100%)}
+.field::after{content:'';position:absolute;left:3vw;right:3vw;bottom:-6px;height:30px;background:radial-gradient(ellipse,rgba(0,0,0,.55),transparent 70%);z-index:-1}
+.ent .sprite{margin-bottom:4px}
+.ent .nm{position:relative;z-index:2;background:rgba(0,0,0,.45);padding:1px 8px;border-radius:8px}
+.field{padding-bottom:10px}
+.combat::before{content:'';position:absolute;left:0;right:0;top:0;height:62%;pointer-events:none;opacity:.9;
+ background:repeating-linear-gradient(90deg,rgba(120,160,255,.035) 0 54px,transparent 54px 64px),repeating-linear-gradient(0deg,rgba(120,255,180,.05) 0 2px,transparent 2px 14px);
+ -webkit-mask-image:linear-gradient(180deg,transparent,#000 30%,#000 70%,transparent);mask-image:linear-gradient(180deg,transparent,#000 30%,#000 70%,transparent)}
+@media (max-width:820px){.topbar{overflow-x:auto;overflow-y:hidden;flex-wrap:nowrap;scrollbar-width:none}.topbar>*{flex-shrink:0}}
+
+.topbar .sh{display:none}
+@media (max-width:520px){
+ .topbar{gap:4px;padding:0 4px;font-size:12px;overflow:hidden}
+ .topbar .nm b,.topbar .lg{display:none}.topbar .sh{display:inline}
+ .topbar .relics{flex:1 1 0;min-width:0;overflow-x:auto}
+ .topbar>*:not(.relics){flex-shrink:0}
+ .topbar .btn.small{padding:2px 4px;min-width:0;font-size:12px}
+ .topbar .potion{width:20px;height:20px;font-size:12px}
+ .relic{width:22px;height:22px;font-size:13px}
+ .hand{width:100vw}
+}
+/* ===== 英语学习 / 联动 / 市场事件 ===== */
+.card .art{position:relative}
+.card .en{position:absolute;left:2px;right:2px;bottom:1px;font-size:9.5px;line-height:1.1;color:#bfe3ff;font-family:system-ui,sans-serif;font-weight:600;text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-shadow:0 1px 1px #000}
+.een{font-size:10.5px;color:#9fd0ff;font-style:italic;margin-top:1px;text-shadow:0 1px 0 #000;position:relative;z-index:2}
+.tip .entip{margin-top:5px;border-top:1px solid #3a4a5a;padding-top:4px;color:#cfe6ff;font-size:12.5px}
+.tip .entip>div{margin:2px 0}.tip .entip i{color:#9fd0ff}.tip .entip span{color:#d9cdb8}
+.tip .cbtip{margin-top:5px;border-top:1px solid #4a3a2a;padding-top:4px;color:#ffd9a0;font-size:12px;line-height:1.45}
+.combobar{position:absolute;top:4px;left:50%;transform:translateX(-50%);display:flex;gap:6px;flex-wrap:wrap;justify-content:center;z-index:6;max-width:96vw}
+.cbchip{background:rgba(30,22,40,.85);border:1px solid #6a5580;border-radius:12px;padding:2px 8px;font-size:12px;color:#e8dcc6;cursor:help;white-space:nowrap}
+.cbchip b{color:var(--gold)}.cbchip.on{border-color:#ffd35a;box-shadow:0 0 8px #ffd35a66}
+.mech{font-size:13.5px;line-height:1.6;background:rgba(40,60,90,.35);border-left:3px solid #5fb0ff;padding:8px 12px;margin:8px 0;color:#dfe9f5}
+.mktag{display:inline-block;background:#5a3a10;color:#ffd35a;border-radius:10px;padding:1px 10px;font-size:12px;margin-bottom:2px}
+.vtabs{display:flex;gap:6px;flex-wrap:wrap;justify-content:center;margin-bottom:8px}
+.vocab{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:8px;max-width:900px;max-height:58vh;overflow:auto;text-align:left}
+.vw{background:rgba(0,0,0,.3);border:1px solid #4a3d5a;border-radius:8px;padding:6px 8px}
+.vk{font-weight:bold;color:#9fd0ff;font-size:15px}.vc{font-size:11px;color:#c9b9a0;font-weight:normal;margin-left:4px}
+.vf{font-style:italic;color:#cfe6ff;font-size:12.5px}.vz{color:#e8dcc6;font-size:13px}.vs{color:#8f8576;font-size:11px;margin-top:2px}
+.quiz{max-width:560px;text-align:left}.quiz .qq{font-size:17px;margin-bottom:10px;line-height:1.5}
+.quiz .opts{display:flex;flex-direction:column;gap:8px}
+.opt.qok{border-color:#5fd35f;background:#1f3a22}.opt.qbad{border-color:#e05050;background:#3a1f1f}
+.qex{margin-top:10px;color:var(--gold)}.qex span{color:#cfe6ff;font-size:13px}
+.rw.quizrw{border-color:#5fb0ff}
+@media (max-width:820px),(max-height:620px){.card .en{font-size:8px}.combobar{top:2px;gap:3px}.cbchip{font-size:10.5px;padding:1px 5px}.cbchip .lg{display:none}}
+@media (max-width:520px){.topbar .kwbtn{display:none}}
+</style></head><body><div id="app"></div><script>// ===== 资料来源（已核实）=====
+const SRC={
+ nvl576:{t:'Tom\'s Hardware：GTC 2025 路线图，Rubin Ultra NVL576 预计 2H 2027，FP4 推理 15 EF、FP8 训练 5 EF，每封装 4 颗 GPU die',u:'https://www.tomshardware.com/pc-components/gpus/nvidia-announces-rubin-gpus-in-2026-rubin-ultra-in-2027-feynam-after'},
+ helios:{t:'AMD Helios 机柜（72 × MI455X，FP4 2.9 EF，FP8 1.4 EF，31 TB HBM4，260 TB/s scale-up，UALink）',u:'https://www.amd.com/en/products/rackscale-solutions/helios.html'},
+ vera:{t:'NVIDIA Vera CPU（88 个 Olympus 核，Spatial Multithreading 176 线程）',u:'https://www.nvidia.com/en-us/data-center/vera-cpu/'},
+ amdoai:{t:'AMD IR：AMD 与 OpenAI 6 GW 协议，首批 1 GW MI450 系列计划 2026 下半年开始部署',u:'https://ir.amd.com/news-events/press-releases/detail/1260/amd-and-openai-announce-strategic-partnership-to-deploy-6-gigawatts-of-amd-gpus'},
+ fomc2609:{t:'美联储 2026-09-16 FOMC 声明：利率目标区间上调 25 bp 至 3.75%–4.00%',u:'https://www.federalreserve.gov/newsevents/pressreleases/monetary20260916a.htm'},
+ ust5:{t:'Reuters：美国十年期国债收益率自 2007 年以来首次触及 5%（2023-10）',u:'https://www.reuters.com/markets/rates-bonds/ten-year-us-treasury-yield-hits-5-2023-10-23/'},
+ h20:{t:'NVIDIA 8-K（2025-04-09）：H20 对华出口需许可证，预计最高 55 亿美元费用；TechCrunch：实际计提 45 亿美元',u:'https://www.sec.gov/Archives/edgar/data/1045810/000104581025000082/nvda-20250409.htm'},
+ h20b:{t:'TechCrunch：NVIDIA FY26 Q1 H20 计提 45 亿美元，约 25 亿美元收入无法发货',u:'https://techcrunch.com/2025/05/28/nvidia-expects-to-lose-billions-in-revenue-due-to-h20-chip-licensing-requirements/'},
+ amzn2q26:{t:'Reuters（2026-07-30）：亚马逊 AWS 增速强劲，2026 资本开支上调约 10% 至约 2,200 亿美元，盘后涨近 9%',u:'https://www.reuters.com/business/retail-consumer/amazon-beats-estimates-quarterly-cloud-revenue-growth-2026-07-30/'},
+ amzn2q26ir:{t:'亚马逊 2026 Q2 财报（AWS 收入 422 亿美元，+37%）',u:'https://ir.aboutamazon.com/news-release/news-release-details/2026/Amazon-com-Announces-Second-Quarter-Results/default.aspx'},
+ deepseek:{t:'Reuters（2025-01-27）：DeepSeek 引发 AI 股抛售，NVIDIA 下跌约 17%，市值蒸发约 5,930 亿美元',u:'https://www.reuters.com/technology/chinas-deepseek-sets-off-ai-market-rout-2025-01-27/'},
+ hormuz:{t:'美国 EIA：2024 年霍尔木兹海峡石油流量约 2,000 万桶/日，约占全球石油液体消费 20%',u:'https://www.eia.gov/todayinEnergy/detail.php?id=65504'},
+ hbmprice:{t:'TrendForce（2025-12-24，报道）：三星、SK 海力士计划对 2026 年 HBM3E 提价约 20%',u:'https://www.trendforce.com/news/2025/12/24/news-samsung-sk-hynix-reportedly-plan-20-hbm3e-price-hike-for-2026-as-nvidia-h200-asic-demand-rises/'},
+ midterm:{t:'2 U.S.C. §7：联邦选举日为偶数年 11 月第一个星期一之后的星期二（2026-11-03）',u:'https://uscode.house.gov/view.xhtml?edition=prelim&num=0&req=granuleid%3AUSC-prelim-title2-section7'},
+ micron3x:{t:'Tom\'s Hardware：美光称同等 bit 下 HBM3E 消耗约 3 倍于 DDR5 的晶圆（FY24 Q2 财报电话会）',u:'https://www.tomshardware.com/pc-components/gpus/micron-says-high-bandwidth-memory-is-sold-out-for-2024-and-most-of-2025-intense-demand-portends-potential-ai-gpu-production-bottleneck'},
+ h100:{t:"NVIDIA H100 规格（80 GB HBM3，3.35 TB/s，FP8 稀疏 3,958 TFLOPS，700 W）",u:"https://www.nvidia.com/en-us/data-center/h100/"},
+ gb200:{t:"NVIDIA GB200 NVL72 规格（72 GPU + 36 Grace，FP4 稀疏 1,440 PF，FP8 720 PF，13.4 TB HBM3E，576 TB/s）",u:"https://www.nvidia.com/en-us/data-center/gb200-nvl72/"},
+ b300:{t:"NVIDIA Blackwell Ultra 数据表（B300：288 GB HBM3E 12 层，FP4 稠密 15 PF）",u:"https://dam-cdn.nvd.orangelogic.com/AssetLink/1k0p832eq8r5ca0u5383ie5o4tp3bst1.pdf"},
+ gb300:{t:"Lenovo Press：GB300 NVL72 机柜约 135 kW",u:"https://lenovopress.lenovo.com/lp2357.pdf"},
+ rubin:{t:"NVIDIA Vera Rubin NVL72 规格（每 GPU 288 GB HBM4，19.2 TB/s，NVFP4 推理 50 PF（稀疏）/ 训练 35 PF（稠密），NVLink 6 每 GPU 3 TB/s；100 MW 约 4 万颗 GPU）",u:"https://www.nvidia.com/en-us/data-center/vera-rubin-nvl72/"},
+ rubinpod:{t:"NVIDIA 技术博客：Vera Rubin POD（Vera CPU 88 核，NVLink-C2C 1.8 TB/s）",u:"https://developer.nvidia.com/blog/nvidia-vera-rubin-pod-seven-chips-five-rack-scale-systems-one-ai-supercomputer/"},
+ kyber:{t:"DCD：Rubin Ultra NVL576 机柜预计约 600 kW（2027 下半年）",u:"https://www.datacenterdynamics.com/en/news/nvidias-rubin-ultra-nvl576-rack-expected-to-be-600kw-coming-second-half-of-2027/"},
+ ruultra:{t:"Inside Deep Tech：Rubin Ultra 官方目标（16 栈 HBM4E、1 TB）与未证实的缩减报道",u:"https://www.insidedeeptech.com/nvidia-rubin-ultra-kyber-nvl576-full-guide/"},
+ semivr:{t:"SemiAnalysis：Vera Rubin 功耗与配电（单 GPU 最高约 2.3 kW，报道）",u:"https://newsletter.semianalysis.com/p/vera-rubin-extreme-co-design-an-evolution"},
+ jedec:{t:"JEDEC JESD270-4 HBM4 标准（2048 位接口，最高 8 Gb/s/针，约 2 TB/s 单栈）",u:"https://www.jedec.org/news/pressreleases/jedec%C2%AE-and-industry-leaders-collaborate-release-jesd270-4-hbm4-standard-advancing"},
+ skh3e:{t:"SK hynix：量产 12 层 HBM3E（36 GB，9.6 Gbps）",u:"https://news.skhynix.com/en/sk-hynix-begins-volume-production-of-the-world-first-12-layer-hbm3e/"},
+ skh4:{t:"SK hynix：完成 HBM4 开发（2,048 个 I/O，超过 10 Gbps）",u:"https://news.skhynix.com/en/sk-hynix-completes-worlds-first-hbm4-development-and-readies-mass-production/"},
+ mi355:{t:"AMD Instinct MI355X 产品简介（288 GB HBM3E，8 TB/s，1,400 W）",u:"https://www.amd.com/en/products/accelerators/instinct/mi350/mi355x.html"},
+ ironwood:{t:"Google Cloud：TPU7x Ironwood（每芯片 FP8 4,614 TFLOPS，192 GiB HBM，单舱 9,216 芯片，42.5 EFLOPS）",u:"https://docs.cloud.google.com/tpu/docs/tpu7x"},
+ colossus:{t:"xAI：Colossus（122 天建成，92 天翻倍到 20 万 GPU）",u:"https://x.ai/colossus"},
+ colpower:{t:"Tom's Hardware：Colossus 一期电网 150 MW + 150 MW Megapack 备用；初期 14 台 2.5 MW 燃气发电机（报道）",u:"https://www.tomshardware.com/tech-industry/artificial-intelligence/musks-colossus-is-fully-operational-with-200-000-gpus-backed-by-tesla-batteries-phase-2-to-consume-300-mw-enough-to-power-300-000-homes"},
+ abilene:{t:"Crusoe：Stargate Abilene 旗舰园区上线（8 栋楼，每栋最多 5 万颗 GB200）",u:"https://www.crusoe.ai/resources/newsroom/crusoe-announces-flagship-abilene-data-center-is-live"},
+ abilene2:{t:"DCD：Ellison 称 Abilene 将容纳超过 45 万颗 GB200，用电 1.2 GW",u:"https://www.datacenterdynamics.com/en/news/openai-and-oracle-to-deploy-450000-gb200-gpus-at-stargate-abilene-data-center/"},
+ meta:{t:"Meta 2025 Q2 讲稿：Prometheus 2026 年上线，1 GW+；Hyperion 可扩展至 5 GW",u:"https://s21.q4cdn.com/399680738/files/doc_downloads/2025/META-Q2-2025-Prepared-Remarks.pdf"},
+ hyperion:{t:"TechCrunch：Hyperion 2030 年前上线 2 GW，之后扩至 5 GW",u:"https://techcrunch.com/2025/07/14/mark-zuckerberg-says-meta-is-building-a-5gw-ai-data-center/"},
+ fairwater:{t:"Microsoft：Fairwater（单柜 72 颗 Blackwell，1.8 TB/s，14 TB 共享内存，每柜 86.5 万 tokens/s）",u:"https://blogs.microsoft.com/blog/2025/09/18/inside-the-worlds-most-powerful-ai-datacenter/"},
+ bloom:{t:"Bloom Energy Server 数据表（每块 325 kW，平均寿命电效率 54%）",u:"https://bloomenergy.com/wp-content/uploads/bloom-energy-server-brochure-2025.pdf"},
+ electron:{t:"Rocket Lab：Electron（LEO 运力 300 kg，高 18 m）",u:"https://rocketlabcorp.com/launch/electron/"},
+ neutron:{t:"Rocket Lab：Neutron（LEO 13,000 kg，可复用；返场回收 8,500 kg）",u:"https://rocketlabcorp.com/launch/neutron/"},
+ optics:{t:"TrendForce：EML 与 CW-DFB 激光器产能（1.6T = 8 × 200G）",u:"https://www.trendforce.com/presscenter/news/20260603-13077.html"},
+ laser:{t:"Chipstrat：Lumentum 与激光器瓶颈",u:"https://newsletter.chipstrat.com/p/lumentum-and-the-laser-bottleneck"},
+ nextplat:{t:"The Next Platform：英伟达 2026–2028 路线图（Spectrum-6 102.4 Tb/s 等）",u:"https://www.nextplatform.com/compute/2026/03/19/driving-down-the-ai-system-roadmap-with-nvidia/5210195"},
+ heise:{t:"heise：Kyber 机柜与 Rubin Ultra 主板（800 VDC）",u:"https://www.heise.de/en/news/Kyber-Rack-Nvidia-Shows-Rubin-Ultra-Boards-11213103.html"},
+ samsung4:{t:"三星：量产出货 HBM4（单栈最高 3.3 TB/s）",u:"https://semiconductor.samsung.com/news-events/news/samsung-ships-industry-first-commercial-hbm4-with-ultimate-performance-for-ai-computing/"},
+
+ cw2q26:{t:'CoreWeave 2026 Q2 财报（收入 25.75 亿美元、净亏损 6.26 亿、净利息支出 6.40 亿、积压约 1,040 亿美元）',u:'https://www.sec.gov/Archives/edgar/data/1769628/000176962826000362/coreweave2q26earningspress.htm'},
+ cwpres:{t:'CoreWeave 2026 投资者材料（活跃电力约 1.5 GW、签约约 4.2 GW、35 亿美元 2.625% 可转债）',u:'https://www.sec.gov/Archives/edgar/data/1769628/000176962826000429/crwv2026convertpresentat.htm'},
+ nebius:{t:'Nebius 6-K：与微软的 GPU 产能合同（五年，约 174 亿美元，最高 194 亿；Vineland 数据中心）',u:'https://www.sec.gov/Archives/edgar/data/1513845/000110465925088312/tm2525580d1_6k.htm'},
+ nebius2:{t:'Nebius–微软合同附录 1（按 GPU 数 × 每 GPU 小时价格 × 小时数计费）',u:'https://www.sec.gov/Archives/edgar/data/1513845/000110465926052948/nbis-20251231xex4d5.htm'},
+ gcloud:{t:'Alphabet 2026 Q2：Google Cloud 收入 248 亿美元（+82%），积压 5,139 亿美元，约 50% 在 24 个月内确认',u:'https://www.sec.gov/Archives/edgar/data/1652044/000165204426000071/R26.htm'},
+ neutron27:{t:'Rocket Lab（2026-10-14）：Neutron 首飞推迟到 2027 年',u:'https://investors.rocketlabcorp.com/news-releases/news-release-details/rocket-lab-provides-update-neutron-development-and-adjusts'},
+ electron98:{t:'Rocket Lab（2026-10-23）：第 98 次 Electron 发射，今年第 19 次',u:'https://rocketlabcorp.com/updates/mission-success-rocket-lab-launches-98th-electron-mission/'},
+ electron25:{t:'Rocket Lab：2025 年 Electron/HASTE 共 21 次发射，100% 成功',u:'https://www.stocktitan.net/news/RKLB/rocket-lab-successfully-launches-for-i-qps-ends-2025-with-21-jvv3dukgezth.html'},
+ starcloud:{t:'DCD：Starcloud-1（60 kg，首颗在轨 H100，325 km；规划 5 GW 轨道数据中心）',u:'https://www.datacenterdynamics.com/en/news/starcloud-1-satellite-reaches-space-with-nvidia-h100-gpu-now-operating-in-orbit/'},
+ cpo:{t:'NVIDIA：Spectrum-X / Quantum-X Photonics 共封装光学交换机（激光器减至 1/4，功效 3.5 倍；Quantum-X 144 × 800G）',u:'https://nvidianews.nvidia.com/news/nvidia-spectrum-x-co-packaged-optics-networking-switches-ai-factories'},
+ lum16:{t:'Lumentum 1.6T 2×DR4 OSFP（8 × 212.5G PAM4，全重定时，典型 22 W）',u:'https://www.lumentum.com/en/products/16t-2dr4-osfp-transceiver-module'},
+ lum16tro:{t:'Lumentum 1.6T 2×DR4 TRO OSFP（仅发端重定时，典型 16 W）',u:'https://www.lumentum.com/en/products/16t-2dr4-tro-osfp-transceiver-module'},
+ cpx:{t:'NVIDIA：Rubin CPX（NVFP4 最高 30 PF，128 GB GDDR7）',u:'https://investor.nvidia.com/news/press-release-details/2025/NVIDIA-Unveils-Rubin-CPX-A-New-Class-of-GPU-Designed-for-Massive-Context-Inference/default.aspx'},
+ cpxshelf:{t:'Tom\'s Hardware（报道）：Rubin CPX 被移出 GTC 2026 路线图',u:'https://www.tomshardware.com/pc-components/gpus/nvidia-removes-rubin-cpx-accelerators-from-its-roadmap-groq-3-lpus-take-center-stage-as-cpx-is-removed'},
+ mi455:{t:'AMD Instinct MI455X（432 GB HBM4，12 栈，23.3 TB/s，MXFP4 40.3 PF，2026-07-23 发布）',u:'https://www.amd.com/en/products/accelerators/instinct/mi400/mi455x.html'},
+ mu4:{t:'美光：HBM4 36GB 12H 量产（>11 Gb/s，>2.8 TB/s），HBM4 48GB 16H 送样',u:'https://investors.micron.com/news/press-release/2026/Micron-in-High-Volume-Production-of-HBM4-Designed-for-NVIDIA-Vera-Rubin-PCIe-Gen6-SSD-and-SOCAMM2-03-16-2026/default.aspx'},
+ hbf:{t:'SK hynix × SanDisk：首个 HBF 标准规范（最高 512 GB，8/16 层，约 0.4–3.0 TB/s）',u:'https://news.skhynix.com/en/hbf-at-fms-2026/'},
+ vrds:{t:'NVIDIA Vera Rubin 数据表（NVL72：3,600 PF NVFP4 推理，20.7 TB HBM4，187–227 kW）',u:'https://dam-cdn.nvd.orangelogic.com/AssetLink/56p68o47y6f1yucpubl0ump1c0aif422.pdf'},
+};
+// ===== 关键词 =====
+const KW={
+ '格挡':'在敌人回合前抵挡伤害。你的格挡在你的回合开始时清零。',
+ '易伤':'受到的攻击伤害增加 50%。每回合结束减少 1 层。',
+ '虚弱':'造成的攻击伤害减少 25%。每回合结束减少 1 层。',
+ '脆弱':'从卡牌获得的格挡减少 25%。每回合结束减少 1 层。',
+ '力量':'每次攻击伤害增加对应数值。',
+ '敏捷':'从卡牌获得的格挡增加对应数值。',
+ '中毒':'回合开始时失去等量生命，然后中毒减 1。无视格挡。',
+ '金属化':'回合结束时获得对应数值的格挡。',
+ '荆棘':'被攻击时，对攻击者造成对应数值的伤害。',
+ '人工制品':'抵消下一个负面效果。',
+ '临时力量':'本回合内增加的力量，回合结束时失去。',
+ '量化':'下一张攻击牌伤害翻倍（模拟稀疏口径约为稠密 2 倍）。',
+ '消耗':'打出后移出本场战斗。',
+ '虚无':'回合结束时若在手中，则被消耗。',
+ '不可打出':'这张牌无法被打出。',
+ '能力':'打出后在本场战斗中持续生效。',
+ '仪式':'每回合结束时获得对应数值的力量。',
+ '激怒':'你每打出一张技能牌，它获得对应数值的力量。',
+ '再生':'回合结束时回复对应数值的生命，然后减 1。',
+ '壁垒':'格挡不会在回合开始时清零。',
+ 'HBM 层':'回合结束时获得 层数÷2（向下取整）点格挡；最多 16 层（对应 16-Hi 堆叠）。部分牌会读出层数造成伤害。',
+ '发射':'火箭进入倒计时，T-0 时结算效果（伤害按原始数值，受易伤影响，不受力量影响）。',
+ '积压订单':'每回合开始时，确认一半（向上取整）作为伤害打向随机敌人，其余继续积压。',
+ '段':'光模块按通道数分段攻击，每段都计算力量与易伤。',
+};
+// 状态显示
+const STAT={
+ str:{n:'力量',i:'💪',good:1},dex:{n:'敏捷',i:'🌀',good:1},vuln:{n:'易伤',i:'💔',bad:1,dur:1},weak:{n:'虚弱',i:'🥀',bad:1,dur:1},frail:{n:'脆弱',i:'🧊',bad:1,dur:1},
+ poison:{n:'中毒',i:'☠️',bad:1},metal:{n:'金属化',i:'🔩',good:1},thorns:{n:'荆棘',i:'🌵',good:1},art:{n:'人工制品',i:'🔰',good:1},tstr:{n:'临时力量',i:'⚡',good:1},
+ regen:{n:'再生',i:'💚',good:1},dbl:{n:'量化',i:'✖️2',good:1},demon:{n:'战魔',i:'😈',good:1,d:'回合开始时获得对应数值的力量。'},ritual:{n:'仪式',i:'🕯️',good:1},
+ barricade:{n:'壁垒',i:'🏰',good:1},fnp:{n:'无痛',i:'🔥',good:1,d:'每当有牌被消耗，获得对应数值的格挡。'},rupture:{n:'痛觉',i:'🩸',good:1,d:'每当你因卡牌失去生命，获得对应数值的力量。'},
+ xen:{n:'额外能量',i:'🔋',good:1,d:'每回合开始额外获得对应数值的能量。'},xdraw:{n:'额外抽牌',i:'📡',good:1,d:'每回合开始额外抽对应数值的牌。'},cuts:{n:'园区算力',i:'🏭',good:1,d:'每打出一张牌，对所有敌人造成对应数值的伤害。'},
+ enrage:{n:'激怒',i:'😡',good:1},nextblk:{n:'预置格挡',i:'🧱',good:1,d:'下回合开始时获得对应数值的格挡。'},cool:{n:'液冷回路',i:'💧',good:1,d:'每回合结束时，每点未用能量获得对应数值的格挡。'},
+ skillblk:{n:'800VDC',i:'🔌',good:1,d:'每打出一张技能牌，获得对应数值的格挡。'},powdraw:{n:'NVLink-C2C',i:'🔗',good:1,d:'每打出一张能力牌，抽对应数值的牌。'},
+ hbm:{n:'HBM 层',i:'🧱',good:1},hbmup:{n:'HBM 扩产',i:'🏗️',good:1,d:'回合开始时 HBM 层 +对应数值。'},backlog:{n:'积压订单',i:'📚',good:1},
+ cloud:{n:'云订单',i:'☁️',good:1,d:'回合开始时积压订单 +对应数值。'},nexten:{n:'下回合能量',i:'⛽',good:1,d:'下回合开始时额外获得对应数值的能量。'},
+ cpo:{n:'共封装光学',i:'💠',good:1,d:'光模块牌每段伤害 +对应数值。'},roadmap:{n:'年度路线图',i:'🗓️',good:1,d:'每回合抽牌后，随机升级手中 1 张牌（本场战斗）。'},
+ reuse:{n:'一级回收',i:'♻️',good:1,d:'每次火箭发射结算时，抽对应数值的牌并获得 1 点能量。'},orbit:{n:'轨道算力',i:'🛰️',good:1,d:'回合开始时对随机敌人造成对应数值的伤害。'},
+ flee:{n:'逃跑',i:'💨',d:'几回合后带着偷走的金币逃跑。'},steal:{n:'偷窃',i:'🪙',d:'攻击时偷走金币，击败可拿回。'},charge:{n:'充能',i:'⚡',d:'充能满 2 层后释放「过载放电」。'},
+};
+for(const k in STAT){if(!STAT[k].d)STAT[k].d=KW[STAT[k].n]||''}
+
+// ===== 卡牌 =====
+const CARDS={};
+function C(id,o){o.id=id;o.u=o.u||{};CARDS[id]=o}
+const R=(a,b)=>a+Math.floor(Math.random()*(b-a+1));
+// ---- 数据中心建设者（电力 · 云 · 新云）----
+C('w_strike',{n:'打桩施工',c:'war',t:'attack',r:'starter',cost:1,tg:'enemy',v:{d:6},u:{d:9},ds:'造成 {D:d} 点伤害。',art:'🏗️',fl:'每座 GW 级园区都从地基开始。',play:(g,v,t)=>g.atk(t,v.d)});
+C('w_defend',{n:'安全围挡',c:'war',t:'skill',r:'starter',cost:1,tg:'none',v:{b:5},u:{b:8},ds:'获得 {B:b} 点格挡。',art:'🚧',play:(g,v)=>g.blk(v.b)});
+C('w_bash',{n:'变电站合闸',c:'war',t:'attack',r:'starter',cost:2,tg:'enemy',v:{d:8,m:2},u:{d:10,m:3},ds:'造成 {D:d} 点伤害。给予 {m} 层易伤。',art:'⚡',fl:'先把高压送进园区，后面的机柜才能点亮。',play:(g,v,t)=>{g.atk(t,v.d);g.ap(t,'vuln',v.m)}});
+C('w_twin',{n:'2N 双路供电',c:'war',t:'attack',r:'common',cost:1,tg:'enemy',v:{d:5},u:{d:7},ds:'造成 {D:d} 点伤害两次。',art:'🔌',fl:'2N 冗余：两套完全独立的供电链路，任何一路故障都不停机。',play:(g,v,t)=>g.atk(t,v.d,2)});
+C('w_cleave',{n:'园区平整',c:'war',t:'attack',r:'common',cost:1,tg:'all',v:{d:8},u:{d:11},ds:'对所有敌人造成 {D:d} 点伤害。',art:'🚜',play:(g,v)=>g.atkAll(v.d)});
+C('w_anger',{n:'Colossus 式复制',c:'war',t:'attack',r:'common',cost:0,tg:'enemy',v:{d:6},u:{d:8},ds:'造成 {D:d} 点伤害。将一张本牌的复制加入弃牌堆。',art:'📦',fl:'xAI Colossus 122 天建成，再用 92 天翻倍到 20 万颗 GPU：同一套模板反复复制。',src:['colossus'],play:(g,v,t,c)=>{g.atk(t,v.d);g.addDiscard(c.id,c.up)}});
+C('w_bodyslam',{n:'Megapack 放电',c:'war',t:'attack',r:'common',cost:1,uc:0,tg:'enemy',v:{},ds:'造成等同于你当前格挡值的伤害。',art:'🔋',fl:'储能电池把存下的电一次性放出来：格挡（储能）直接变成伤害。',src:['colpower'],play:(g,v,t)=>g.atk(t,g.p.block)});
+C('w_thunder',{n:'谐波冲击',c:'war',t:'attack',r:'common',cost:1,tg:'all',v:{d:4,m:1},u:{d:7,m:1},ds:'对所有敌人造成 {D:d} 点伤害并给予 {m} 层易伤。',art:'〰️',play:(g,v)=>{g.atkAll(v.d);g.apAll('vuln',v.m)}});
+C('w_pierce',{n:'专用高压线',c:'war',t:'attack',r:'common',cost:2,tg:'enemy',v:{d:14},u:{d:18},ds:'造成 {D:d} 点伤害，无视格挡。',art:'🗼',fl:'自建专线绕开公共电网排队。',play:(g,v,t)=>g.atk(t,v.d,1,{pierce:1})});
+C('w_blood',{n:'CoreWeave 杠杆扩张',c:'war',t:'attack',r:'common',cost:1,tg:'enemy',v:{d:16,m:4},u:{d:20,m:5},ds:'失去 {m} 点生命。造成 {D:d} 点伤害。',art:'💳',fl:'换算：失去生命 = 伤害 × 25%。CoreWeave 2026 Q2 收入 25.75 亿美元，净利息支出 6.40 亿美元，约为收入的 25%。',src:['cw2q26'],play:(g,v,t)=>{g.lose(v.m);g.atk(t,v.d)}});
+C('w_pommel',{n:'施工工单',c:'war',t:'attack',r:'common',cost:1,tg:'enemy',v:{d:9,m:1},u:{d:10,m:2},ds:'造成 {D:d} 点伤害。抽 {m} 张牌。',art:'📋',play:(g,v,t)=>{g.atk(t,v.d);g.draw(v.m)}});
+C('w_iron',{n:'钢结构机房',c:'war',t:'skill',r:'common',cost:1,tg:'none',v:{b:8},u:{b:11},ds:'获得 {B:b} 点格挡。',art:'🏢',play:(g,v)=>g.blk(v.b)});
+C('w_shout',{n:'开工令',c:'war',t:'skill',r:'common',cost:0,tg:'none',v:{b:3,m:1},u:{b:4,m:2},ds:'获得 {B:b} 点格挡。抽 {m} 张牌。',art:'📣',play:(g,v)=>{g.blk(v.b);g.draw(v.m)}});
+C('w_flex',{n:'峰值负荷',c:'war',t:'skill',r:'common',cost:0,tg:'none',v:{m:2},u:{m:4},ds:'获得 {m} 点临时力量。',art:'📈',play:(g,v)=>g.self('tstr',v.m)});
+C('w_intim',{n:'环评听证',c:'war',t:'skill',r:'common',cost:0,tg:'none',v:{m:1},u:{m:2},ex:1,ds:'给予所有敌人 {m} 层虚弱。消耗。',art:'🏛️',play:(g,v)=>g.apAll('weak',v.m)});
+C('d_turbine',{n:'2.5 MW 燃气轮机',c:'war',t:'skill',r:'common',cost:1,tg:'none',v:{b:5,m:1},u:{b:7,m:1},ds:'获得 {B:b} 点格挡。下回合额外获得 {m} 点能量。',art:'🏭',fl:'换算：格挡 = 单台功率 MW × 2 = 5。Colossus 并网前先用约 14 台 2.5 MW 燃气发电机供电（报道），电力先于电网到位，所以下回合能量 +1。',src:['colpower'],play:(g,v)=>{g.blk(v.b);g.self('nexten',v.m)}});
+C('d_contract',{n:'Google Cloud 合同',c:'war',t:'skill',r:'common',cost:1,tg:'none',v:{m:8},u:{m:12},ds:'积压订单 +{m}。',art:'📝',fl:'积压订单：每回合开始「确认」一半（向上取整）为对随机敌人的伤害。Google Cloud 积压 5,139 亿美元，预计其中略超 50% 在 24 个月内确认为收入。',src:['gcloud'],play:(g,v)=>g.self('backlog',v.m)});
+C('d_rent',{n:'Nebius GPU 时租',c:'war',t:'skill',r:'common',cost:0,tg:'none',v:{m:12,k:2},u:{m:12,k:3},ds:'支付 {m} 金币：获得 {k} 点能量。金币不足则无效。',art:'⏱️',fl:'新云按「GPU 数 × 每 GPU 小时单价 × 小时数」收费（Nebius–微软合同附录口径）：用钱换即时算力。',src:['nebius2'],play:(g,v)=>{if(g.spend(v.m))g.en(v.k);else g.toast('金币不足')}});
+C('w_sword',{n:'GPU 抢购潮',c:'war',t:'attack',r:'uncommon',cost:1,tg:'none',v:{d:3,m:3},u:{d:3,m:4},ds:'随机对敌人造成 {D:d} 点伤害 {m} 次。',art:'🛒',play:(g,v)=>g.atkRandom(v.d,v.m)});
+C('w_feed',{n:'并购园区',c:'war',t:'attack',r:'uncommon',cost:1,tg:'enemy',v:{d:10,m:3},u:{d:12,m:4},ex:1,ds:'造成 {D:d} 点伤害。若击杀，最大生命 +{m}。消耗。',art:'🤝',play:(g,v,t)=>{g.atk(t,v.d);if(t.hp<=0){g.run.maxHp+=v.m;g.p.hp+=v.m;g.float(g.p,'+'+v.m+' 上限','heal')}}});
+C('w_uppercut',{n:'价格战',c:'war',t:'attack',r:'uncommon',cost:2,tg:'enemy',v:{d:13,m:1},u:{d:13,m:2},ds:'造成 {D:d} 点伤害。给予 {m} 层虚弱和 {m} 层易伤。',art:'🏷️',play:(g,v,t)=>{g.atk(t,v.d);g.ap(t,'weak',v.m);g.ap(t,'vuln',v.m)}});
+C('w_second',{n:'腾退机位',c:'war',t:'skill',r:'uncommon',cost:1,tg:'none',v:{b:5},u:{b:7},ds:'消耗手中所有非攻击牌，每张获得 {B:b} 点格挡。',art:'🧹',play:(g,v)=>{const n=g.exhaustHand(c=>CARDS[c.id].t!=='attack');for(let i=0;i<n;i++)g.blk(v.b)}});
+C('w_grit',{n:'削减预算',c:'war',t:'skill',r:'uncommon',cost:1,tg:'none',v:{b:7},u:{b:9},ds:'获得 {B:b} 点格挡。随机消耗手中 1 张牌。',art:'✂️',play:(g,v)=>{g.blk(v.b);g.exhaustRandomHand()}});
+C('w_entrench',{n:'Megapack 扩容',c:'war',t:'skill',r:'uncommon',cost:2,uc:1,tg:'none',v:{},ds:'将你的格挡翻倍。',art:'🔋',fl:'换算：Colossus 一期电网 150 MW + 150 MW Megapack 备用，正好 2 倍。',src:['colpower'],play:(g)=>g.rawBlk(g.p.block)});
+C('w_bloodlust',{n:'可转债融资',c:'war',t:'skill',r:'uncommon',cost:0,tg:'none',v:{m:2,k:2},u:{m:2,k:1},ds:'获得 {m} 点能量。获得 {k} 层易伤。',art:'🏦',fl:'CoreWeave 2026 Q2 通过债务、可转债和股权融资；拟发行 35 亿美元、票息 2.625% 的可转债。先拿钱扩张，再承受风险。',src:['cwpres'],play:(g,v)=>{g.en(v.m);g.selfDebuff('vuln',v.k)}});
+C('w_inflame',{n:'签下 GW 级购电协议',c:'war',t:'power',r:'uncommon',cost:1,tg:'none',v:{m:2},u:{m:3},ds:'获得 {m} 点力量。',art:'📜',play:(g,v)=>g.self('str',v.m)});
+C('w_metal',{n:'UPS 不间断电源',c:'war',t:'power',r:'uncommon',cost:1,tg:'none',v:{m:3},u:{m:4},ds:'回合结束时获得 {m} 点格挡（金属化）。',art:'🔋',play:(g,v)=>g.self('metal',v.m)});
+C('w_thorns',{n:'安防围栏',c:'war',t:'power',r:'uncommon',cost:1,tg:'none',v:{m:3},u:{m:4},ds:'获得 {m} 层荆棘。',art:'🧱',play:(g,v)=>g.self('thorns',v.m)});
+C('w_rupture',{n:'融资飞轮',c:'war',t:'power',r:'uncommon',cost:1,tg:'none',v:{m:1},u:{m:2},ds:'每当你因卡牌失去生命，获得 {m} 点力量。',art:'🌀',fl:'新云模式：举债建机房 → 签长约 → 以合同为抵押再融资。',src:['cwpres'],play:(g,v)=>g.self('rupture',v.m)});
+C('w_fnp',{n:'折旧税盾',c:'war',t:'power',r:'uncommon',cost:1,tg:'none',v:{m:3},u:{m:4},ds:'每当有牌被消耗，获得 {m} 点格挡。',art:'🧾',play:(g,v)=>g.self('fnp',v.m)});
+C('d_gridq',{n:'排队并网',c:'war',t:'power',r:'uncommon',cost:1,uc:0,tg:'none',v:{},ds:'2 回合后，本场战斗每回合额外获得 1 点能量。',art:'🕰️',fl:'电网接入要排队，但一旦并网，电力就源源不断。',play:(g)=>g.launch({n:'并网',t:2,fx:'xen',d:1,ic:'🔌'})});
+C('d_backlog',{n:'云积压订单',c:'war',t:'power',r:'uncommon',cost:1,tg:'none',v:{m:4},u:{m:6},ds:'每回合开始时，积压订单 +{m}。',art:'📚',fl:'Google Cloud 积压订单 5,139 亿美元（2026-06-30），单季增加超过 500 亿：云的收入随时间叠加。',src:['gcloud'],play:(g,v)=>g.self('cloud',v.m)});
+C('a_ups',{n:'Megapack 冗余',c:'war',t:'skill',r:'common',cost:1,tg:'none',v:{b:5},u:{b:7},ds:'获得 {B:b} 点格挡。下回合开始时再获得 {b} 点格挡。',art:'🔋',fl:'Colossus 一期：电网 150 MW + 150 MW Megapack 备用 → 两份相同的格挡。',src:['colpower'],play:(g,v)=>{g.blk(v.b);g.self('nextblk',v.b)}});
+C('a_bloom',{n:'Bloom 燃料电池',c:'war',t:'skill',r:'uncommon',cost:0,tg:'none',v:{m:2},u:{m:3},ex:1,ds:'获得 {m} 点能量。消耗。',art:'🧪',fl:'Bloom Energy Server：每块 325 kW，平均寿命电效率 54%，可在园区内快速模块化部署。',src:['bloom'],play:(g,v)=>g.en(v.m)});
+C('a_800v',{n:'800 VDC 母线',c:'war',t:'power',r:'uncommon',cost:1,tg:'none',v:{m:2},u:{m:3},ds:'每打出一张技能牌，获得 {m} 点格挡。',art:'⚡',fl:'600 kW ÷ 54 V ≈ 11,100 A；÷ 800 V = 750 A。电流降到约 1/15，所以 Kyber 改用 800 VDC。',src:['heise','kyber'],play:(g,v)=>g.self('skillblk',v.m)});
+C('w_demon',{n:'Google Cloud +82%',c:'war',t:'power',r:'rare',cost:3,tg:'none',v:{m:2},u:{m:3},ds:'每回合开始时获得 {m} 点力量。',art:'☁️',fl:'Google Cloud 2026 Q2 收入 248 亿美元，同比 +82%，经营利润率 35.6%：规模越大越强。',src:['gcloud'],play:(g,v)=>g.self('demon',v.m)});
+C('w_barricade',{n:'Nebius–微软五年长约',c:'war',t:'power',r:'rare',cost:3,uc:2,tg:'none',v:{},ds:'格挡不再在回合开始时清零。',art:'🤝',fl:'Nebius 为微软提供新泽西 Vineland 数据中心的专用 GPU 产能，五年合同总值约 174 亿美元（最高 194 亿）：长约让现金流不会清零。',src:['nebius'],play:(g)=>g.self('barricade',1)});
+C('w_bludgeon',{n:'Stargate Abilene 1.2 GW',c:'war',t:'attack',r:'rare',cost:3,uc:2,tg:'enemy',v:{d:36},ds:'造成 {D:d} 点伤害。',art:'🌌',fl:'换算：伤害 = 园区功率 GW × 30 = 36。Abilene 8 栋楼、约 1.2 GW，超过 45 万颗 GB200（Ellison 口径）。',src:['abilene','abilene2'],play:(g,v,t)=>g.atk(t,v.d)});
+C('w_reaper',{n:'余热回收',c:'war',t:'attack',r:'rare',cost:2,tg:'all',v:{d:4},u:{d:5},ex:1,ds:'对所有敌人造成 {D:d} 点伤害。回复等同于未被格挡伤害的生命。消耗。',art:'♨️',play:(g,v)=>{const n=g.atkAll(v.d);g.heal(n)}});
+C('w_limit',{n:'Hyperion 2→5 GW',c:'war',t:'skill',r:'rare',cost:1,tg:'none',v:{},ex:1,uex:0,ds:'将你的力量乘以 2.5（向下取整）。{EX}',art:'🏛️',fl:'换算：Meta Hyperion 2030 年前先上线 2 GW，之后扩到 5 GW，正好 2.5 倍。',src:['hyperion','meta'],play:(g)=>{const s=g.p.st.str||0;if(s>0)g.self('str',Math.floor(s*2.5)-s)}});
+C('w_whirl',{n:'满负荷运转',c:'war',t:'attack',r:'rare',cost:-1,tg:'all',v:{d:5},u:{d:8},ds:'对所有敌人造成 {D:d} 点伤害 X 次（X=消耗的能量）。',art:'🌪️',play:(g,v,t,c,x)=>{for(let i=0;i<x;i++)g.atkAll(v.d)}});
+C('w_imperv',{n:'核电长期购电协议',c:'war',t:'skill',r:'rare',cost:2,tg:'none',v:{b:30},u:{b:40},ex:1,ds:'获得 {B:b} 点格挡。消耗。',art:'☢️',play:(g,v)=>g.blk(v.b)});
+C('w_offer',{n:'增发股票',c:'war',t:'skill',r:'rare',cost:0,tg:'none',v:{m:3},u:{m:5},ex:1,ds:'失去 6 点生命。获得 2 点能量，抽 {m} 张牌。消耗。',art:'📃',fl:'CoreWeave 2026 Q2 通过债务、可转债和股权融资支撑扩张（活跃电力约 1.5 GW，签约约 4.2 GW）。',src:['cwpres'],play:(g,v)=>{g.lose(6);g.en(2);g.draw(v.m)}});
+C('a_colossus',{n:'Colossus 20 万 GPU',c:'war',t:'power',r:'rare',cost:3,uc:2,tg:'none',v:{m:1},ds:'每回合开始时获得 {m} 点力量和 2 点积压订单。',art:'🏟️',fl:'xAI Colossus：122 天建成，再用 92 天翻倍到 20 万颗 GPU，算力随时间叠加。',src:['colossus'],play:(g,v)=>{g.self('demon',v.m);g.self('cloud',2)}});
+C('a_stargate',{n:'Stargate 园区',c:'war',t:'power',r:'rare',cost:3,uc:2,tg:'none',v:{m:1},u:{m:1},ds:'每打出一张牌，对所有敌人造成 {m} 点伤害。',art:'🌃',fl:'Stargate Abilene：8 栋楼、设计 1.2 GW，每栋最多 5 万颗 GB200。',src:['abilene','abilene2'],play:(g,v)=>g.self('cuts',v.m)});
+C('a_prom',{n:'Prometheus 1 GW 点火',c:'war',t:'skill',r:'rare',cost:1,tg:'none',v:{m:1},u:{m:2},ex:1,ds:'获得 {m} 点力量和 {m} 点敏捷。消耗。',art:'🔥',fl:'Meta Prometheus：2026 年上线的 1 GW+ 集群。',src:['meta'],play:(g,v)=>{g.self('str',v.m);g.self('dex',v.m)}});
+C('d_cwbacklog',{n:'CoreWeave 1,040 亿积压',c:'war',t:'skill',r:'rare',cost:2,tg:'none',v:{m:20,k:4},u:{m:26,k:4},ex:1,ds:'积压订单 +{m}。失去 {k} 点生命。消耗。',art:'📦',fl:'换算：积压 = 1,040 亿美元 ÷ 52 = 20。CoreWeave 积压订单约 1,040 亿美元（同比 +246%），但同季净亏损 6.26 亿美元。',src:['cw2q26','cwpres'],play:(g,v)=>{g.self('backlog',v.m);g.lose(v.k)}});
+
+// ---- 算力架构师（芯片 · 存储）----
+C('a_strike',{n:'H100 张量核',c:'ai',t:'attack',r:'starter',cost:1,tg:'enemy',v:{d:6},u:{d:9},ds:'造成 {D:d} 点伤害。',art:'🔲',fl:'Hopper H100：FP8 稀疏 3,958 TFLOPS，700 W。（H100 无 FP4，按入门攻击处理）',src:['h100'],play:(g,v,t)=>g.atk(t,v.d)});
+C('a_hbm3',{n:'H100 HBM3 80GB',c:'ai',t:'skill',r:'starter',cost:1,tg:'none',v:{b:5,k:1},u:{b:8,k:2},ds:'获得 {B:b} 点格挡。HBM 层 +{k}。',art:'🧱',fl:'换算：格挡 = 每 GPU HBM 容量 GB ÷ 16。H100 为 80 GB → 5。',src:['h100'],play:(g,v)=>{g.blk(v.b);g.layer(v.k)}});
+C('a_nvlhs',{n:'NVLink 5 握手',c:'ai',t:'skill',r:'starter',cost:0,tg:'none',v:{m:1},u:{m:2},ds:'抽 {m} 张牌。',art:'🔗',fl:'NVLink 5：每 GPU 1.8 TB/s，72 颗 GPU 组成一个 NVLink 域。',src:['gb200'],play:(g,v)=>g.draw(v.m)});
+C('a_runaway',{n:'热失控',c:'ai',t:'skill',r:'starter',cost:1,tg:'enemy',v:{m:5},u:{m:7},ds:'给予 {m} 层中毒。',art:'🌡️',fl:'Rubin 单 GPU 功耗最高约 2.3 kW（报道），超过 2 kW 后风冷不可行。',src:['semivr'],play:(g,v,t)=>g.ap(t,'poison',v.m)});
+C('a_b200',{n:'B200（Blackwell）',c:'ai',t:'attack',r:'common',cost:2,tg:'enemy',v:{d:10},u:{d:15},un:'B300（Blackwell Ultra）',ds:'造成 {D:d} 点伤害。',art:'🟩',fl:'换算：伤害 = 每 GPU FP4 稠密 PFLOPS。B200 = 10 PF；升级为 B300 = 15 PF。',src:['gb200','b300'],play:(g,v,t)=>g.atk(t,v.d)});
+C('a_hbm3e',{n:'SK hynix HBM3E 12-Hi',c:'ai',t:'skill',r:'common',cost:1,tg:'none',v:{b:6,k:12},u:{b:8,k:16},un:'美光 HBM4 16-Hi 48GB',ds:'获得 {B:b} 点格挡。HBM 层数提升到 {k}（若更低）。',art:'🗄️',fl:'换算：格挡 = 单栈容量 GB ÷ 6；层数 = 堆叠层数。SK hynix 12 层 HBM3E 单栈 36 GB → 6 格挡、12 层；升级为美光 HBM4 16-Hi 48 GB 样品 → 8 格挡、16 层。',src:['skh3e','mu4'],play:(g,v)=>{g.blk(v.b);g.layerTo(v.k)}});
+C('a_mu4',{n:'美光 HBM4 12H',c:'ai',t:'skill',r:'common',cost:1,tg:'none',v:{k:3,m:2},u:{k:4,m:3},un:'三星 HBM4 3.3 TB/s',ds:'HBM 层 +{k}。抽 {m} 张牌。',art:'💾',fl:'换算：抽牌 = 单栈带宽 TB/s 向下取整。美光 HBM4 12H：36 GB，>11 Gb/s 引脚速率，>2.8 TB/s → 2；升级为三星 HBM4 单栈最高 3.3 TB/s → 3。',src:['mu4','samsung4'],play:(g,v)=>{g.layer(v.k);g.draw(v.m)}});
+C('a_readout',{n:'HBM4 2048 位读出',c:'ai',t:'attack',r:'common',cost:1,tg:'enemy',v:{d:2},u:{d:6},ds:'造成等同于 HBM 层数 +{d} 的伤害，然后 HBM 层数减半。',art:'📤',fl:'HBM4 接口宽 2,048 位（JEDEC），层数越高、一次读出的数据越多。',src:['jedec','skh4'],play:(g,v,t)=>{const L=g.p.st.hbm||0;g.atk(t,L+v.d);if(L)g.self('hbm',-Math.ceil(L/2))}});
+C('a_nvlink',{n:'NVLink 横扫',c:'ai',t:'attack',r:'common',cost:1,tg:'all',v:{d:6},u:{d:10},un:'NVLink 6 横扫',ds:'对所有敌人造成 {D:d} 点伤害。',art:'🕸️',fl:'换算：伤害 = 每 GPU NVLink 带宽 TB/s × 3.33。NVLink 5 为 1.8 TB/s → 6；NVLink 6 为 3 TB/s → 10。',src:['gb200','rubin'],play:(g,v)=>g.atkAll(v.d)});
+C('a_coldplate',{n:'GB300 冷板液冷',c:'ai',t:'skill',r:'common',cost:1,tg:'none',v:{b:8},u:{b:11},ds:'获得 {B:b} 点格挡。',art:'❄️',fl:'GB300 NVL72 机柜约 135 kW，只能液冷。',src:['gb300'],play:(g,v)=>g.blk(v.b)});
+C('a_pcie',{n:'PCIe Gen6 直连',c:'ai',t:'attack',r:'common',cost:0,tg:'enemy',v:{d:3,m:1},u:{d:5,m:1},ds:'造成 {D:d} 点伤害。抽 {m} 张牌。',art:'🔌',fl:'PCIe Gen6 x16 约 256 GB/s，NVLink-C2C 1.8 TB/s 约为其 7 倍。',src:['rubinpod'],play:(g,v,t)=>{g.atk(t,v.d);g.draw(v.m)}});
+C('a_grace',{n:'Grace CPU 调度',c:'ai',t:'skill',r:'common',cost:1,uc:0,tg:'none',v:{m:1},ds:'获得 1 点能量。抽 {m} 张牌。',art:'🧠',fl:'GB200 NVL72：72 颗 GPU 配 36 颗 Grace CPU（2:1）。',src:['gb200'],play:(g,v)=>{g.en(1);g.draw(v.m)}});
+C('a_tp',{n:'张量并行',c:'ai',t:'attack',r:'common',cost:1,tg:'enemy',v:{d:3,m:3},u:{d:4,m:3},ds:'造成 {D:d} 点伤害 {m} 次。',art:'🧩',fl:'把一层网络切到多颗 GPU 上同时算，靠 NVLink 域内高带宽同步。',src:['gb200'],play:(g,v,t)=>g.atk(t,v.d,v.m)});
+C('a_fp4',{n:'NVFP4 量化',c:'ai',t:'skill',r:'common',cost:1,uc:0,tg:'none',v:{},ds:'下一张攻击牌伤害翻倍。',art:'✖️',fl:'GB200 NVL72：FP4 1,440 PF，正好是 FP8 720 PF 的 2 倍：精度减半、吞吐翻倍。',src:['gb200'],play:(g)=>g.self('dbl',1)});
+C('a_pipeline',{n:'Fairwater 推理流水线',c:'ai',t:'attack',r:'common',cost:1,tg:'enemy',v:{d:7,m:2},u:{d:9,m:3},ds:'造成 {D:d} 点伤害。给予 {m} 层中毒。',art:'🏭',fl:'Fairwater 单个 GB200 机柜每秒约 86.5 万 token（微软口径）。',src:['fairwater'],play:(g,v,t)=>{g.atk(t,v.d);g.ap(t,'poison',v.m)}});
+C('a_throttle',{n:'热节流',c:'ai',t:'skill',r:'uncommon',cost:1,tg:'none',v:{m:2},u:{m:3},ds:'给予所有敌人 {m} 层虚弱。',art:'🥵',fl:'芯片过热会自动降频；功率密度是每代 GPU 的硬约束。',src:['semivr'],play:(g,v)=>g.apAll('weak',v.m)});
+C('a_grad',{n:'梯度爆炸',c:'ai',t:'skill',r:'uncommon',cost:1,tg:'enemy',v:{m:2},u:{m:3},ex:1,ds:'使目标的中毒变为 {m} 倍。消耗。',art:'💥',play:(g,v,t)=>{const p=t.st.poison||0;if(p)g.ap(t,'poison',p*(v.m-1))}});
+C('a_hbm4',{n:'Rubin 288GB HBM4',c:'ai',t:'skill',r:'uncommon',cost:2,tg:'none',v:{b:18,k:4},u:{b:18,k:8},ds:'获得 {B:b} 点格挡。HBM 层 +{k}。',art:'🏗️',fl:'换算：每 GPU 288 GB ÷ 16 = 18 格挡。Rubin HBM4 带宽 19.2 TB/s，约为 B200 8 TB/s 的 2.4 倍。',src:['rubin','jedec'],play:(g,v)=>{g.blk(v.b);g.layer(v.k)}});
+C('a_mi455',{n:'AMD MI455X',c:'ai',t:'attack',r:'uncommon',cost:2,tg:'enemy',v:{d:40},ds:'造成 {D:d} × (HBM 层数 ÷ 12，最多 1) 点伤害。',art:'🟥',fl:'换算：伤害 = FP4 PFLOPS（MXFP4 40.3 PF → 40），但要 12 层 HBM 才能满额，对应 MI455X 的 12 个 HBM4 堆栈（432 GB，23.3 TB/s）。2026-07-23 发布。',src:['mi455'],play:(g,v,t)=>{const L=Math.min(12,g.p.st.hbm||0);g.atk(t,Math.floor(v.d*L/12))}});
+C('a_ironwood',{n:'TPU Ironwood 舱',c:'ai',t:'attack',r:'uncommon',cost:2,uc:1,tg:'all',v:{d:9},ds:'对所有敌人造成 {D:d} 点伤害。',art:'🌲',fl:'换算：伤害 = 单舱芯片数 ÷ 1,000。TPU7x Ironwood 单舱 9,216 颗 → 9；FP8 合计 42.5 EFLOPS，每芯片 192 GiB HBM。',src:['ironwood'],play:(g,v)=>g.atkAll(v.d)});
+C('a_specdec',{n:'推测解码',c:'ai',t:'skill',r:'uncommon',cost:1,tg:'none',v:{m:3},u:{m:4},ex:1,ds:'抽 {m} 张牌。消耗。',art:'🔮',fl:'小模型先猜、大模型一次验证多个 token，用算力换延迟。',play:(g,v)=>g.draw(v.m)});
+C('a_batch',{n:'连续批处理',c:'ai',t:'attack',r:'uncommon',cost:2,tg:'enemy',v:{d:3},u:{d:4},ds:'手中每有 1 张牌，造成 {D:d} 点伤害一次。',art:'📦',fl:'批次越大，GPU 利用率越高，但单个请求延迟上升。',play:(g,v,t)=>g.atk(t,v.d,g.hand.length)});
+C('a_cowos',{n:'CoWoS-L 封装',c:'ai',t:'power',r:'uncommon',cost:1,tg:'none',v:{m:2},u:{m:3},ds:'获得 {m} 点敏捷。',art:'🧇',fl:'单次光刻曝光上限约 858 mm²，所以 Blackwell 拼接 2 颗芯片，Rubin Ultra 目标 4 颗。',src:['gb200','ruultra'],play:(g,v)=>g.self('dex',v.m)});
+C('a_gb300',{n:'GB300 NVL72 机柜',c:'ai',t:'power',r:'uncommon',cost:2,uc:1,tg:'none',v:{m:4},ds:'回合结束时获得 {m} 点格挡（金属化）。',art:'🧊',fl:'GB300 NVL72 机柜约 135 kW；B300 288 GB HBM3E 12 层。',src:['gb300','b300'],play:(g,v)=>g.self('metal',v.m)});
+C('a_c2c',{n:'NVLink-C2C',c:'ai',t:'power',r:'uncommon',cost:0,tg:'none',v:{m:1},u:{m:2},ds:'每打出一张能力牌，抽 {m} 张牌。',art:'🔗',fl:'Vera CPU 88 核，经 NVLink-C2C 以 1.8 TB/s 连接 GPU。',src:['rubinpod'],play:(g,v)=>g.self('powdraw',v.m)});
+C('a_hbmstack',{n:'TSV 堆叠',c:'ai',t:'power',r:'uncommon',cost:1,tg:'none',v:{m:2},u:{m:3},ds:'每回合开始时 HBM 层 +{m}。',art:'🥞',fl:'HBM 用硅通孔（TSV）把多层 DRAM 竖直叠起来；JEDEC HBM4 支持最高 16 层。',src:['jedec'],play:(g,v)=>g.self('hbmup',v.m)});
+C('a_nvl576',{n:'Rubin Ultra NVL576（预计 2H 2027）',c:'ai',t:'attack',r:'rare',cost:3,tg:'all',v:{d:15,m:4},u:{d:20,m:4},ex:1,ds:'对所有敌人造成 {D:d} 点伤害。HBM 层 +{m}。消耗。',art:'🏯',fl:'换算：AoE 伤害 = 机柜 FP4 推理 EFLOPS = 15（GTC 2025 目标）；HBM 层 +4 = 每个封装 4 颗 GPU die。厂商规划、尚未出货，因此打出后消耗。机柜预计约 600 kW。',src:['nvl576','kyber'],play:(g,v)=>{g.atkAll(v.d);g.layer(v.m)}});
+C('a_helios',{n:'AMD Helios（72×MI455X）',c:'ai',t:'attack',r:'rare',cost:3,tg:'all',v:{d:14,b:31},u:{d:18,b:31},ds:'对所有敌人造成 {D:d} 点伤害。获得 {B:b} 点格挡。',art:'☀️',fl:'换算：AoE 伤害 = 机柜 FP8 EFLOPS × 10（1.4 → 14）；格挡 = 机柜 HBM4 TB（31）。72 颗 MI455X、FP4 2.9 EF、260 TB/s scale-up（UALink）。OpenAI 首批 1 GW MI450 系列部署目标为 2026 下半年。',src:['helios','amdoai'],play:(g,v)=>{g.atkAll(v.d);g.blk(v.b)}});
+C('a_vera',{n:'Vera CPU 88 核',c:'ai',t:'skill',r:'uncommon',cost:1,uc:0,tg:'none',ex:1,v:{m:2},ds:'获得 1 点能量。抽 {m} 张牌。',art:'🧠',fl:'换算：抽牌 = 每核线程数 = 176 线程 ÷ 88 核 = 2（NVIDIA Spatial Multithreading）。Vera 是 Vera Rubin 平台的 CPU，接替 Grace。',src:['vera','rubinpod'],play:(g,v)=>{g.en(1);g.draw(v.m)}});
+C('w_amd6gw',{n:'OpenAI–AMD 6 GW（首批 2H 2026·目标）',c:'war',t:'skill',r:'uncommon',cost:1,tg:'none',v:{m:12},u:{m:16},ds:'积压订单 +{m}。',art:'📝',fl:'换算：积压订单 = 协议总功率 GW × 2（6 → 12）。2025-10 AMD 与 OpenAI 签下 6 GW 多年协议，首批 1 GW MI450 系列计划 2026 下半年开始部署（厂商目标）。',src:['amdoai'],play:(g,v)=>g.self('backlog',v.m)});
+C('a_rubin',{n:'Rubin（Vera Rubin）',c:'ai',t:'attack',r:'rare',cost:3,uc:2,tg:'enemy',v:{d:35},ds:'造成 {D:d} 点伤害。',art:'🟪',fl:'换算：伤害 = 每 GPU NVFP4 训练 PFLOPS = 35（推理 50 PF）。Vera Rubin NVL72 机柜：3,600 PF 推理，20.7 TB HBM4，功耗 187–227 kW。',src:['rubin','vrds'],play:(g,v,t)=>g.atk(t,v.d)});
+C('a_cpx',{n:'Rubin CPX（已搁置·报道）',c:'ai',t:'attack',r:'rare',cost:3,tg:'enemy',v:{d:30,m:2},u:{d:30,m:3},ex:1,ds:'造成 {D:d} 点伤害。抽 {m} 张牌。消耗。',art:'🎞️',fl:'换算：伤害 = NVFP4 峰值 30 PF；128 GB GDDR7（非 HBM，所以不吃 HBM 层）。2025 年发布，2026 年 GTC 后被报道移出路线图，因此打出后消耗。',src:['cpx','cpxshelf'],play:(g,v,t)=>{g.atk(t,v.d);g.draw(v.m)}});
+C('a_hbm4e',{n:'HBM4E 16 栈（预计）',c:'ai',t:'skill',r:'rare',cost:3,uc:2,tg:'none',v:{b:64,k:16},ex:1,ds:'获得 {B:b} 点格挡；但有 50% 概率只获得 {B:k} 点（缩减配置）。消耗。',art:'🎲',fl:'官方目标：Rubin Ultra 每 GPU 1 TB（÷16 = 64）。有未证实报道称可能缩减到 192–256 GB（256 ÷ 16 = 16）。',src:['ruultra'],play:(g,v)=>{if(Math.random()<.5)g.blk(v.b);else{g.blk(v.k);g.toast('报道成真：缩减配置！')}}});
+C('a_hbf',{n:'HBF 高带宽闪存',c:'ai',t:'skill',r:'rare',cost:2,tg:'none',v:{b:32},u:{b:32},uc:1,ex:1,ds:'HBM 层数提升到 16。下回合开始时获得 {b} 点格挡。消耗。',art:'💽',fl:'换算：格挡 = 单立方容量 512 GB ÷ 16 = 32；NAND 读取慢于 DRAM，所以格挡下回合才到。SanDisk 与 SK hynix 的 OCP HBF 规范：最高 512 GB，8 层/16 层，约 0.4–3.0 TB/s。',src:['hbf'],play:(g,v)=>{g.layerTo(16);g.self('nextblk',v.b)}});
+C('a_nvl72',{n:'GB200 NVL72',c:'ai',t:'power',r:'rare',cost:3,uc:2,tg:'none',v:{m:1},ds:'每回合开始额外获得 {m} 点能量。',art:'🗼',fl:'72 颗 GPU + 36 颗 Grace 在一个 NVLink 域内，13.4 TB HBM3E，576 TB/s。',src:['gb200'],play:(g,v)=>g.self('xen',v.m)});
+C('a_kyber',{n:'Kyber 600 kW（目标）',c:'ai',t:'power',r:'rare',cost:3,tg:'none',v:{m:1,k:1},u:{m:1,k:2},ds:'每回合开始额外获得 {m} 点能量并多抽 {k} 张牌。',art:'🌋',fl:'GTC 口径：Rubin Ultra NVL576 / Kyber 机柜目标约 600 kW、800 VDC（预计 2027 下半年）。',src:['kyber','heise'],play:(g,v)=>{g.self('xen',v.m);g.self('xdraw',v.k)}});
+C('a_roadmap',{n:'一年一代路线图',c:'ai',t:'power',r:'rare',cost:2,uc:1,tg:'none',v:{},ds:'每回合抽牌后，随机升级手中 1 张牌（本场战斗）。',art:'🗓️',fl:'英伟达按年迭代：Blackwell → Blackwell Ultra → Rubin → Rubin Ultra（2027 下半年，预计）。',src:['nextplat','kyber'],play:(g)=>g.self('roadmap',1)});
+
+// ---- 轨道与光网工程师（光通信 · 火箭）----
+C('o_strike',{n:'光纤脉冲',c:'orb',t:'attack',r:'starter',cost:1,tg:'enemy',v:{d:6},u:{d:9},ds:'造成 {D:d} 点伤害。',art:'✴️',play:(g,v,t)=>g.atk(t,v.d)});
+C('o_defend',{n:'铠装光缆',c:'orb',t:'skill',r:'starter',cost:1,tg:'none',v:{b:5},u:{b:8},ds:'获得 {B:b} 点格挡。',art:'🧵',play:(g,v)=>g.blk(v.b)});
+C('o_800g',{n:'800G 光模块',c:'orb',t:'attack',r:'starter',cost:1,tg:'enemy',lane:1,v:{d:1,k:8},u:{d:2,k:8},un:'1.6T 光模块',ds:'造成 {D:d} 点伤害 {k} 次。',art:'💡',fl:'换算：段数 = 通道数，每段伤害 = 单通道速率 ÷ 100G。800G = 8 × 100G → 1×8；升级为 1.6T = 8 × 200G → 2×8。力量对每一段都生效。',src:['optics'],play:(g,v,t)=>g.atk(t,v.d,v.k,{lane:1})});
+C('o_electron',{n:'Electron 发射',c:'orb',t:'skill',r:'starter',cost:1,tg:'none',v:{m:12},u:{m:16},ds:'发射：下回合开始时对随机敌人造成 {m} 点伤害。',art:'🚀',fl:'换算：发射伤害 = LEO 运力 kg ÷ 25。Electron 300 kg → 12。2025 年 21 次发射全部成功；2026-10-23 完成第 98 次发射。',src:['electron','electron25','electron98'],play:(g,v)=>g.launch({n:'Electron',t:1,d:v.m,ic:'🚀'})});
+C('o_16t',{n:'Lumentum 1.6T DR4',c:'orb',t:'attack',r:'common',cost:2,uc:1,tg:'enemy',lane:1,v:{d:2,k:8},un:'Lumentum 1.6T TRO',ds:'造成 {D:d} 点伤害 {k} 次。',art:'🔦',fl:'8 条 212.5 Gb/s PAM4 通道 → 2×8。全重定时版典型功耗 22 W → 费用 2；升级为仅发端重定时的 TRO 版，16 W → 费用 1。',src:['lum16','lum16tro'],play:(g,v,t)=>g.atk(t,v.d,v.k,{lane:1})});
+C('o_fusion',{n:'光纤熔接',c:'orb',t:'attack',r:'common',cost:0,tg:'enemy',lane:1,v:{d:2,k:2},u:{d:3,k:2},ds:'造成 {D:d} 点伤害 {k} 次。',art:'🔥',play:(g,v,t)=>g.atk(t,v.d,v.k,{lane:1})});
+C('o_dsp',{n:'DSP 重定时',c:'orb',t:'skill',r:'common',cost:1,tg:'none',v:{b:6,m:1},u:{b:9,m:1},ds:'获得 {B:b} 点格挡。抽 {m} 张牌。',art:'📶',fl:'DSP 把高速信号重新整形，代价是功耗：同为 1.6T，全重定时 22 W，仅发端重定时 16 W（Lumentum）。',src:['lum16','lum16tro'],play:(g,v)=>{g.blk(v.b);g.draw(v.m)}});
+C('o_eml',{n:'EML 激光器',c:'orb',t:'skill',r:'common',cost:0,tg:'none',v:{m:2},u:{m:3},ds:'获得 {m} 点临时力量（对多段攻击每段生效）。',art:'🔴',fl:'1.6T 放量，EML 与 CW 激光器成为瓶颈。',src:['optics','laser'],play:(g,v)=>g.self('tstr',v.m)});
+C('o_shell',{n:'Electron 整流罩',c:'orb',t:'skill',r:'common',cost:1,tg:'none',v:{b:8},u:{b:11},ds:'获得 {B:b} 点格挡。',art:'🛡️',play:(g,v)=>g.blk(v.b)});
+C('o_haste',{n:'HASTE 亚轨道',c:'orb',t:'skill',r:'common',cost:1,tg:'none',v:{m:6},u:{m:9},ds:'发射：下回合开始时对所有敌人造成 {m} 点伤害。',art:'🎯',fl:'HASTE 是 Electron 的亚轨道衍生型。（无可换算的公开参数，数值为游戏设定）',play:(g,v)=>g.launch({n:'HASTE',t:1,d:v.m,all:1,ic:'🎯'})});
+C('o_ground',{n:'地面站接收',c:'orb',t:'skill',r:'common',cost:1,tg:'none',v:{m:2},u:{m:3},ds:'抽 {m} 张牌。',art:'📡',play:(g,v)=>g.draw(v.m)});
+C('o_tminus',{n:'T-0 倒计时',c:'orb',t:'skill',r:'common',cost:0,tg:'none',v:{m:0},u:{m:1},ds:'所有待发射项目推进 1 回合（归零立即发射）。抽 {m} 张牌。',art:'⏱️',play:(g,v)=>{g.advance();if(v.m)g.draw(v.m)}});
+C('o_ocs',{n:'光路交换 OCS',c:'orb',t:'attack',r:'common',cost:1,tg:'all',lane:1,v:{d:2,k:2},u:{d:3,k:2},ds:'对所有敌人造成 {D:d} 点伤害 {k} 次。',art:'🔀',play:(g,v)=>g.atkAll(v.d,v.k,{lane:1})});
+C('o_sat',{n:'Starcloud-1 入轨',c:'orb',t:'skill',r:'common',cost:1,tg:'none',v:{b:4,m:3},u:{b:7,m:3},ds:'获得 {B:b} 点格挡。发射：2 回合后入轨，此后每回合开始对随机敌人造成 {m} 点伤害。',art:'🛰️',fl:'换算：轨道伤害 = 卫星质量 kg ÷ 20。Starcloud-1 重 60 kg → 3，搭载首颗在轨 H100，轨道高度 325 km。',src:['starcloud'],play:(g,v)=>{g.blk(v.b);g.launch({n:'Starcloud-1',t:2,fx:'orbit',d:v.m,ic:'🛰️'})}});
+C('o_cpo',{n:'Spectrum-X Photonics CPO',c:'orb',t:'power',r:'uncommon',cost:1,uc:0,tg:'none',v:{m:1},ds:'你的多段光通信攻击每段伤害 +{m}。',art:'🌈',fl:'共封装光学把光引擎做进交换芯片：激光器减少到 1/4，功效提升 3.5 倍（NVIDIA 官方）。',src:['cpo'],play:(g,v)=>g.self('cpo',v.m)});
+C('o_qx',{n:'Quantum-X Photonics',c:'orb',t:'attack',r:'uncommon',cost:2,tg:'all',lane:1,v:{d:1,k:8},u:{d:2,k:8},ds:'对所有敌人造成 {D:d} 点伤害 {k} 次。',art:'🌐',fl:'换算：800G 端口 = 8 段。Quantum-X Photonics InfiniBand 交换机：144 个 800G 端口，基于 200G SerDes（NVIDIA 官方）。',src:['cpo'],play:(g,v)=>g.atkAll(v.d,v.k,{lane:1})});
+C('a_spectrum',{n:'Spectrum-6 102.4T',c:'orb',t:'power',r:'uncommon',cost:2,uc:1,tg:'none',v:{m:1},ds:'每回合开始额外抽 {m} 张牌。',art:'🔀',fl:'102.4 Tb/s = 512 × 200G 通道，交换带宽越大网络层数越少。',src:['nextplat'],play:(g,v)=>g.self('xdraw',v.m)});
+C('a_neutron',{n:'Neutron 一级回收',c:'orb',t:'skill',r:'uncommon',cost:1,tg:'none',v:{m:1},u:{m:2},ex:1,ds:'从弃牌堆随机取 {m} 张攻击牌加入手牌，本回合费用为 0。消耗。',art:'♻️',fl:'Neutron 一级设计为可复用，返场回收构型 LEO 8,500 kg。',src:['neutron'],play:(g,v)=>g.recover(v.m)});
+C('o_double',{n:'Electron 双发',c:'orb',t:'skill',r:'uncommon',cost:2,uc:1,tg:'none',v:{m:12},ds:'发射 2 枚 Electron：下回合开始时各对随机敌人造成 {m} 点伤害。',art:'🚀',fl:'Electron 2026 年已发射 19 次（截至 10 月 23 日）：高频发射是它的核心优势。',src:['electron98','electron'],play:(g,v)=>{g.launch({n:'Electron',t:1,d:v.m,ic:'🚀'});g.launch({n:'Electron',t:1,d:v.m,ic:'🚀'})}});
+C('o_window',{n:'等待发射窗口',c:'orb',t:'skill',r:'uncommon',cost:1,tg:'none',v:{b:7,m:4},u:{b:10,m:5},ds:'获得 {B:b} 点格挡。所有待发射火箭伤害 +{m}。',art:'🌤️',play:(g,v)=>{g.blk(v.b);g.boostLaunch(v.m)}});
+C('o_rad',{n:'抗辐射加固',c:'orb',t:'skill',r:'uncommon',cost:1,tg:'none',v:{b:6,m:1},u:{b:8,m:2},ds:'获得 {B:b} 点格挡和 {m} 层人工制品。',art:'☢️',play:(g,v)=>{g.blk(v.b);g.self('art',v.m)}});
+C('o_lpo',{n:'LPO 线性直驱',c:'orb',t:'skill',r:'uncommon',cost:0,tg:'none',v:{m:1},u:{m:2},ds:'抽 {m} 张牌。若手中有光通信攻击牌，获得 1 点能量。',art:'➖',fl:'LPO 去掉 DSP 来省电。对比：Lumentum 1.6T 全重定时 22 W，仅发端重定时 16 W；去掉的 DSP 越多越省电。（LPO 本身无官方功耗数据，抽牌数为游戏设定）',src:['lum16','lum16tro'],play:(g,v)=>{g.draw(v.m);if(g.hand.some(c=>CARDS[c.id].lane))g.en(1)}});
+C('o_debris',{n:'太空碎片',c:'orb',t:'attack',r:'uncommon',cost:1,tg:'none',v:{d:3,m:3},u:{d:4,m:3},ds:'随机对敌人造成 {D:d} 点伤害 {m} 次。',art:'☄️',play:(g,v)=>g.atkRandom(v.d,v.m)});
+C('o_solar',{n:'太空太阳翼（规划）',c:'orb',t:'power',r:'uncommon',cost:1,tg:'none',v:{m:3},u:{m:4},ds:'回合结束时获得 {m} 点格挡（金属化）。',art:'🔆',fl:'Starcloud 规划 5 GW 轨道数据中心（规划，未建成）。',src:['starcloud'],play:(g,v)=>g.self('metal',v.m)});
+C('o_neutron',{n:'Neutron 首飞（2027·预计）',c:'orb',t:'skill',r:'rare',cost:3,uc:2,tg:'none',v:{m:45},u:{m:45},ex:1,ds:'发射：3 回合后对所有敌人造成 {m} 点伤害。每回合有 30% 概率推迟 1 回合（最多 2 次）。消耗。',art:'🛸',fl:'Neutron LEO 13,000 kg，是 Electron 的约 43 倍；按 kg ÷ 25 应为 520，为平衡封顶 45。首飞已从 2024 一路推迟，Rocket Lab 2026-10-14 宣布推迟到 2027 年，所以本牌也会推迟。',src:['neutron','neutron27'],play:(g,v)=>g.launch({n:'Neutron',t:3,d:v.m,all:1,dc:.3,dl:2,ic:'🛸'})});
+C('o_reuse',{n:'一级垂直回收',c:'orb',t:'power',r:'rare',cost:2,uc:1,tg:'none',v:{m:1},ds:'每当火箭发射，抽 {m} 张牌并获得 1 点能量。',art:'🛬',fl:'Neutron 一级设计为返场回收（RTLS 构型 8,500 kg）。',src:['neutron'],play:(g,v)=>g.self('reuse',v.m)});
+C('o_orbitdc',{n:'5 GW 轨道数据中心（规划）',c:'orb',t:'power',r:'rare',cost:3,uc:2,tg:'none',v:{m:1,k:3},ds:'每回合开始额外获得 {m} 点能量；每回合开始对随机敌人造成 {k} 点伤害。',art:'🌌',fl:'Starcloud 规划 5 GW 轨道数据中心（规划）；Crusoe 计划 2027 年初通过 Starcloud 提供有限算力。',src:['starcloud'],play:(g,v)=>{g.self('xen',v.m);g.self('orbit',v.k)}});
+C('o_burst',{n:'1.6T 全速齐射',c:'orb',t:'attack',r:'rare',cost:-1,tg:'enemy',lane:1,v:{k:8,d:0},u:{k:8,d:1},ds:'造成 X+{d} 点伤害 8 次（X=消耗的能量）。',art:'💫',fl:'8 条通道同时满载。',src:['optics'],play:(g,v,t,c,x)=>g.atk(t,x+v.d,v.k,{lane:1})});
+C('o_98',{n:'第 98 次 Electron',c:'orb',t:'skill',r:'rare',cost:2,uc:1,tg:'none',v:{m:12},ds:'连续发射 3 枚 Electron：分别在 1、2、3 回合后对随机敌人造成 {m} 点伤害。',art:'🎆',fl:'2026-10-23：Rocket Lab 完成第 98 次 Electron 发射，也是今年第 19 次。',src:['electron98'],play:(g,v)=>{for(const t of [1,2,3])g.launch({n:'Electron',t,d:v.m,ic:'🚀'})}});
+// ---- 状态 / 诅咒 ----
+C('burn',{n:'灼伤',c:'none',t:'status',r:'special',cost:-2,tg:'none',v:{m:2},ds:'不可打出。回合结束时若在手中，受到 {m} 点伤害。',art:'🔥',play:()=>{}});
+C('daze',{n:'晕眩',c:'none',t:'status',r:'special',cost:-2,tg:'none',v:{},eth:1,ds:'不可打出。虚无。',art:'💫',play:()=>{}});
+C('debt',{n:'技术债',c:'none',t:'curse',r:'special',cost:-2,tg:'none',v:{},ds:'不可打出。',art:'📉',play:()=>{}});
+C('slimed',{n:'黏液',c:'none',t:'status',r:'special',cost:1,tg:'none',v:{},ex:1,ds:'消耗。',art:'🟢',play:()=>{}});
+
+// ===== 遗物 =====
+const RELICS={};
+function RL(id,o){o.id=id;RELICS[id]=o}
+RL('ember',{n:'现场运维包',i:'🧰',r:'starter',d:'战斗结束时回复 6 点生命。'});
+RL('groundst',{n:'地面站',i:'📡',r:'starter',d:'每场战斗开始时发射一枚 Electron（T-2）：第 2 回合开始时对随机敌人造成 12 点伤害。',fl:'换算同 Electron 发射牌：LEO 运力 300 kg ÷ 25 = 12。',src:['electron']});
+RL('coldloop',{n:'液冷回路',i:'💧',r:'starter',d:'每回合结束时，每点未用能量获得 2 点格挡。',fl:'同体积水的热容约为空气的 3,500 倍。'});
+RL('colossus',{n:'Colossus 节拍器',i:'⏱️',r:'common',d:'每场战斗第 1 回合额外抽 2 张牌。',fl:'Colossus 122 天建成，又用 92 天翻倍到 20 万颗 GPU。',src:['colossus']});
+RL('megapack',{n:'Megapack 储能',i:'🔋',r:'uncommon',d:'回合结束时保留最多 1 点未用能量到下回合。',fl:'Colossus 一期：电网 150 MW，另有 150 MW 的 Megapack 电池做备用。',src:['colpower']});
+RL('bloomcell',{n:'Bloom 燃料电池块',i:'🧪',r:'rare',d:'每回合开始时，有 54% 概率获得 1 点能量。',fl:'Bloom 每块 325 kW，平均寿命电效率 54%：概率直接取效率值。',src:['bloom']});
+RL('abilene',{n:'Abilene 蓝图',i:'📐',r:'common',d:'获得时最大生命 +12（1.2 GW × 10）。',fl:'Stargate Abilene 设计容量 1.2 GW，8 栋楼。',src:['abilene','abilene2'],onGet:r=>{r.maxHp+=12;r.hp+=12}});
+RL('prometheus',{n:'Prometheus 火种',i:'🔥',r:'uncommon',d:'每场战斗开始时获得 1 点力量。',fl:'Meta Prometheus：首个 1 GW+ 集群，2026 年上线。',src:['meta']});
+RL('hyperion',{n:'Hyperion 地基',i:'🏛️',r:'common',d:'每场战斗开始时获得 10 点格挡（5 GW × 2）。',fl:'Meta Hyperion 可扩展至 5 GW，2030 年前先上线 2 GW。',src:['meta','hyperion']});
+RL('fairwater',{n:'Fairwater 扁平网络',i:'🌐',r:'uncommon',d:'群体攻击牌伤害 +3。',fl:'微软 Fairwater 用单一扁平网络连接数十万颗 GB200/GB300。',src:['fairwater']});
+RL('nvl72',{n:'NVLink 铜背板',i:'🪢',r:'uncommon',d:'每回合打出第 7 张牌时，抽 2 张牌。',fl:'一个 NVL72 域：72 颗 GPU，1.8 TB/s GPU 互联，14 TB 共享内存。',src:['gb200','fairwater']});
+RL('ironwood',{n:'Ironwood 舱门',i:'🚪',r:'common',d:'每场战斗开始时，给予所有敌人 1 层易伤。',fl:'单舱 9,216 颗 TPU，FP8 42.5 EFLOPS。',src:['ironwood']});
+RL('spectrum',{n:'102.4T 交换机',i:'🔀',r:'boss',d:'每回合额外抽 1 张牌。',fl:'102.4 Tb/s = 512 × 200G。',src:['nextplat']});
+RL('lanes',{n:'1.6T 八通道',i:'🔦',r:'common',d:'每次洗牌时获得 8 点格挡（8 × 200G）。',fl:'1.6T 光模块 = 8 条 200G 单通道。',src:['optics']});
+RL('vdc800',{n:'800 VDC 配电柜',i:'⚡',r:'uncommon',d:'每回合第一次受到的攻击伤害减少 4。',fl:'800 V 下同功率电流约为 54 V 的 1/15，铜损更低。',src:['heise']});
+RL('electron',{n:'Electron 整流罩',i:'🚀',r:'common',d:'药水栏 +1。',fl:'Electron LEO 运力 300 kg，适合小载荷。',src:['electron'],onGet:r=>{r.potions.push(null)}});
+RL('neutron',{n:'Neutron 可复用一级',i:'♻️',r:'rare',d:'每场战斗中打出的第一张攻击牌会再打出一次。',fl:'Neutron 一级完全可复用，LEO 13,000 kg。',src:['neutron']});
+RL('wafer',{n:'晶圆置换比 3:1',i:'💿',r:'uncommon',d:'每打出 3 张攻击牌，本场战斗获得 1 点力量。',fl:'同样多的 bit，HBM3E 消耗的晶圆约为 DDR5 的 3 倍（美光口径）。',src:['micron3x']});
+RL('reticle',{n:'光罩极限',i:'🔳',r:'uncommon',d:'每场战斗开始时获得 1 层人工制品。',fl:'单次曝光上限约 858 mm²，超过就只能拼接多颗芯片。'});
+RL('cowos',{n:'CoWoS 中介层',i:'🧇',r:'common',d:'每场战斗开始时获得 1 点敏捷。',fl:'Blackwell 与 Rubin 都用 CoWoS-L 把两颗光罩尺寸芯片和 8 栈 HBM 封在一起。',src:['gb200','rubin']});
+RL('microchan',{n:'微通道冷板',i:'🌊',r:'rare',d:'每场战斗开始时获得 3 层金属化。',fl:'Rubin 单 GPU 最高约 2.3 kW（报道），散热改用微通道冷板。',src:['semivr']});
+RL('c2c',{n:'NVLink-C2C 桥',i:'🔗',r:'boss',d:'每回合开始时获得 1 点能量。',fl:'NVLink-C2C 1.8 TB/s，约为 PCIe Gen6 x16 的 7 倍。',src:['rubinpod']});
+RL('hbm16',{n:'16 层 HBM 堆',i:'🗼',r:'boss',d:'最大生命 +16，获得时回满生命。',fl:'16 层 × 32 Gb = 64 GB 单栈；16 层良率是量产难点。',src:['jedec'],onGet:r=>{r.maxHp+=16;r.hp=r.maxHp}});
+RL('turbine',{n:'2.5MW 燃气轮机',i:'🏭',r:'common',d:'每场战斗开始时，对所有敌人造成 3 点伤害。',fl:'Colossus 早期在并网前用约 14 台 2.5 MW 燃气发电机供电（报道）。',src:['colpower']});
+RL('ledger',{n:'现金流账本',i:'📒',r:'common',d:'战斗胜利后额外获得 12 金币。'});
+
+// ===== 药水 =====
+const POTIONS={
+ fire:{n:'电弧瓶',i:'🧨',d:'对一名敌人造成 20 点伤害。',tg:'enemy',use:(g,t)=>g.dmgRaw(t,20)},
+ block:{n:'冷却液',i:'🧊',d:'获得 12 点格挡。',use:g=>g.rawBlk(12)},
+ str:{n:'超频药剂',i:'💪',d:'获得 2 点力量。',use:g=>g.self('str',2)},
+ energy:{n:'液氮瓶',i:'⚗️',d:'获得 2 点能量。',use:g=>g.en(2)},
+ draw:{n:'缓存命中',i:'📜',d:'抽 3 张牌。',use:g=>g.draw(3)},
+ poison:{n:'热失控喷雾',i:'☣️',d:'给予一名敌人 6 层中毒。',tg:'enemy',use:(g,t)=>g.ap(t,'poison',6)},
+ weak:{n:'降频粉末',i:'🥀',d:'给予一名敌人 3 层虚弱。',tg:'enemy',use:(g,t)=>g.ap(t,'weak',3)},
+ vuln:{n:'裂隙墨水',i:'💔',d:'给予一名敌人 3 层易伤。',tg:'enemy',use:(g,t)=>g.ap(t,'vuln',3)},
+ heal:{n:'再生血清',i:'❤️',d:'回复 20% 最大生命。',use:g=>g.heal(Math.floor(g.run.maxHp*.2))},
+ dex:{n:'敏捷药剂',i:'🌀',d:'获得 2 点敏捷。',use:g=>g.self('dex',2)},
+};
+
+// ===== 敌人 =====
+const ENEMIES={};
+function E(id,o){o.id=id;ENEMIES[id]=o}
+const cyc=list=>(e,t)=>list[t%list.length];
+// 第一幕
+E('slime',{n:'寄生漏电流',sp:'🔌',hp:[28,32],moves:{a:{nm:'电击',i:'atk',d:6},b:{nm:'黏液',i:'atkdebuff',d:3,fn:(g)=>g.debuffP('weak',1)}},ai:cyc(['a','b','a'])});
+E('bats',{n:'串扰噪声',sp:'📶',hp:[18,22],moves:{a:{nm:'尖啸',i:'atk',d:3,x:2},b:{nm:'共振',i:'buff',fn:(g,e)=>g.eSelf(e,'str',2)}},ai:(e,t)=>t===0?'b':(t%3===2?'b':'a')});
+E('rust',{n:'过时机房',sp:'🏚️',hp:[40,44],moves:{a:{nm:'重拳',i:'atk',d:8},b:{nm:'加固',i:'atkdef',d:5,b:8}},ai:cyc(['b','a'])});
+E('imp',{n:'局部热点',sp:'🌡️',hp:[24,28],moves:{a:{nm:'喷火',i:'atkdebuff',d:4,fn:g=>g.addPCard('burn','discard')},b:{nm:'爪击',i:'atk',d:8}},ai:cyc(['a','b'])});
+E('thief',{n:'加密劫持木马',sp:'🦠',hp:[30,33],init:(e)=>{e.st.steal=15;e.stolen=0},moves:{a:{nm:'顺手牵羊',i:'atk',d:7,fn:(g,e)=>g.steal(e)},b:{nm:'烟雾弹',i:'def',b:10},c:{nm:'逃跑',i:'flee',fn:(g,e)=>g.flee(e)}},ai:(e,t)=>t<2?'a':(t===2?'b':'c')});
+E('snake',{n:'出口管制',sp:'🚫',hp:[32,36],moves:{a:{nm:'毒牙',i:'atkdebuff',d:5,fn:g=>g.debuffP('poison',2)},b:{nm:'缠绕',i:'atk',d:8}},ai:cyc(['a','b','b'])});
+// 第二幕
+E('vine',{n:'供应链断点',sp:'⛓️',hp:[50,54],moves:{a:{nm:'缠毒',i:'debuff',fn:g=>{g.debuffP('poison',4)}},b:{nm:'鞭笞',i:'atk',d:10},c:{nm:'扎根',i:'def',b:14}},ai:cyc(['a','b','c','b'])});
+E('reticle',{n:'光罩尺寸极限',sp:'🔳',hp:[60,64],moves:{a:{nm:'曝光',i:'buff',b:12,fn:(g,e)=>g.eSelf(e,'str',2)},b:{nm:'拼接重击',i:'atk',d:12}},ai:cyc(['a','b','b'])});
+E('tower',{n:'用水限额',sp:'💧',hp:[48,52],moves:{a:{nm:'水刃',i:'atk',d:6,x:2},b:{nm:'冷凝',i:'def',b:12,fn:(g,e)=>g.eHeal(e,6)}},ai:cyc(['a','b','a'])});
+E('ghost',{n:'空头报告',sp:'📉',hp:[40,44],moves:{a:{nm:'做空',i:'debuff',fn:g=>{g.debuffP('vuln',2);g.debuffP('frail',2)}},b:{nm:'踩踏',i:'atk',d:9}},ai:cyc(['a','b','b'])});
+E('gambler',{n:'杠杆泡沫',sp:'🎈',hp:[52,56],moves:{a:{nm:'加杠杆',i:'buff',fn:(g,e)=>g.eSelf(e,'str',3)},b:{nm:'梭哈',i:'atk',d:13},c:{nm:'追加保证金',i:'debuff',fn:g=>g.addPCard('daze','draw',2)}},ai:cyc(['a','b','c'])});
+E('hound',{n:'信用利差',sp:'📊',hp:[36,40],moves:{a:{nm:'撕咬',i:'atk',d:8},b:{nm:'利差扩大',i:'atkdebuff',d:5,fn:g=>g.debuffP('weak',1)}},ai:cyc(['a','b'])});
+// 第三幕
+E('oilsnake',{n:'能源价格飙升',sp:'🛢️',hp:[72,78],moves:{a:{nm:'焚油',i:'atk',d:8,x:2},b:{nm:'油井烈焰',i:'atkdebuff',d:6,fn:g=>g.addPCard('burn','discard',2)},c:{nm:'盘绕',i:'def',b:16,fn:(g,e)=>g.eSelf(e,'str',2)}},ai:cyc(['a','b','c'])});
+E('rift',{n:'地缘风险',sp:'🗺️',hp:[80,86],moves:{a:{nm:'封锁海峡',i:'debuff',fn:g=>{g.debuffP('weak',2);g.debuffP('vuln',2)}},b:{nm:'震荡',i:'atk',d:15}},ai:cyc(['a','b','b'])});
+E('golem',{n:'期限溢价',sp:'🏦',hp:[82,88],moves:{a:{nm:'累积溢价',i:'def',b:15,fn:(g,e)=>g.eSelf(e,'str',2)},b:{nm:'久期冲击',i:'atk',d:17}},ai:cyc(['a','b'])});
+// 精英
+E('e_wafer',{n:'晶圆产能挤兑',sp:'💿',hp:[68,72],elite:1,big:1,init:(e)=>{},moves:{a:{nm:'贪食',i:'buff',fn:(g,e)=>g.eSelf(e,'enrage',1)},b:{nm:'碾压',i:'atkdebuff',d:6,fn:g=>g.debuffP('vuln',2)},c:{nm:'吞噬',i:'atk',d:12}},ai:(e,t)=>t===0?'a':(t%3===1?'b':'c'),fl:'你每打出一张技能牌，它就更强。'});
+E('e_trafo',{n:'变压器短缺',sp:'🔌',hp:[80,85],elite:1,big:1,moves:{a:{nm:'过压',i:'atk',d:5,x:3},b:{nm:'绝缘',i:'def',b:14,fn:(g,e)=>g.eSelf(e,'metal',3)},c:{nm:'电弧',i:'atkdebuff',d:12,fn:g=>g.addPCard('daze','discard',2)}},ai:cyc(['b','a','c'])});
+E('e_eye',{n:'ECC 风暴',sp:'🖥️',hp:[140,146],elite:1,big:1,init:(e)=>{e.st.art=2},moves:{a:{nm:'凝视',i:'debuff',fn:g=>{g.debuffP('weak',2);g.debuffP('frail',2)}},b:{nm:'刷新风暴',i:'atk',d:5,x:4},c:{nm:'行锤',i:'atk',d:25}},ai:cyc(['a','b','c'])});
+E('e_dark',{n:'做空基金',sp:'🦈',hp:[175,185],elite:1,big:1,init:(e)=>{e.st.ritual=2},moves:{a:{nm:'冰山订单',i:'atk',d:9,x:3},b:{nm:'洗盘',i:'atkdef',d:12,b:15},c:{nm:'诱空',i:'debuff',fn:g=>{g.debuffP('vuln',2);g.addPCard('daze','draw',2)}}},ai:cyc(['c','a','b'])});
+// Boss
+E('b_wall',{n:'内存墙',sp:'🧱',hp:[170,170],boss:1,big:1,moves:{
+ a:{nm:'带宽封锁',i:'defdebuff',b:12,fn:g=>{g.debuffP('weak',2);g.debuffP('frail',2)}},
+ b:{nm:'延迟冲击',i:'atk',d:15},
+ c:{nm:'再堆一层',i:'buff',b:12,fn:(g,e)=>g.eSelf(e,'str',2)},
+ d:{nm:'内存溢出',i:'atk',d:6,x:3},
+ e:{nm:'坍缩',i:'debuff',fn:(g,e)=>{g.addPCard('daze','discard',3);e.collapsed=1}}},
+ ai:(e,t)=>{if(e.hp<e.maxHp/2&&!e.collapsed)return 'e';return ['a','b','c','d'][e.turnIdx++%4]},init:e=>{e.turnIdx=0},fl:'算力增长远快于内存带宽，芯片大量时间在等数据。'});
+E('b_grid',{n:'电网瓶颈',sp:'⚡',hp:[300,300],boss:1,big:1,init:e=>{e.st.charge=0},moves:{
+ a:{nm:'并网排队',i:'buffdef',b:20,fn:(g,e)=>{e.st.charge=(e.st.charge||0)+1}},
+ b:{nm:'过载放电',i:'atk',d:40,fn:(g,e)=>{e.st.charge=0}},
+ c:{nm:'谐波',i:'atkdebuff',d:10,x:2,fn:g=>g.addPCard('burn','discard',2)},
+ d:{nm:'拉闸',i:'debuff',fn:g=>{g.debuffP('weak',2);g.debuffP('vuln',2)}}},
+ ai:(e,t)=>{if((e.st.charge||0)>=2)return 'b';return ['a','c','a','d'][t%4]},fl:'电力和并网排队是数据中心扩张最大的约束之一。'});
+E('b_rate',{n:'十年期利率',sp:'📈',hp:[420,420],boss:1,big:1,init:e=>{e.st.ritual=1;e.st.art=1},moves:{
+ a:{nm:'收益率攀升',i:'atk',d:12,x:2},
+ b:{nm:'估值压缩',i:'debuff',fn:g=>{g.debuffP('vuln',2);g.debuffP('weak',2);g.debuffP('frail',2)}},
+ c:{nm:'久期重锤',i:'atk',d:30},
+ d:{nm:'缩表',i:'def',b:30,fn:(g,e)=>g.eHeal(e,15)},
+ e:{nm:'曲线倒挂',i:'buff',fn:(g,e)=>{g.eSelf(e,'str',4);e.inverted=1}}},
+ ai:(e,t)=>{if(e.hp<e.maxHp/2&&!e.inverted)return 'e';return ['a','b','c','d'][t%4]},fl:'实际利率上行会压低远期现金流的折现值，长久期成长股首当其冲。'});
+
+const ENCOUNTERS={
+ 1:{easy:[['slime'],['bats','bats'],['rust'],['imp','slime']],hard:[['thief','imp'],['snake','bats'],['rust','imp'],['slime','bats'],['snake','thief']],elite:[['e_wafer'],['e_trafo']],boss:['b_wall']},
+ 2:{easy:[['vine'],['hound','hound'],['tower','imp']],hard:[['reticle','hound'],['ghost','tower'],['gambler','vine'],['ghost','gambler'],['reticle','tower']],elite:[['e_eye'],['e_trafo','hound']],boss:['b_grid']},
+ 3:{easy:[['golem'],['oilsnake']],hard:[['rift','hound'],['oilsnake','ghost'],['golem','tower'],['rift','gambler']],elite:[['e_dark'],['e_eye','ghost']],boss:['b_rate']},
+};
+
+// ===== 英语学习：术语表 =====
+// [术语, 英文全称, 中文一句话, 分类, 匹配关键词]
+const GL_RAW=[
+['GPU','Graphics Processing Unit','图形处理器，AI 训练与推理的主力芯片','芯片',['GPU','H100','B200','B300','Rubin','MI455','MI355','Blackwell','张量核','显卡']],
+['TPU','Tensor Processing Unit','张量处理器，Google 自研 AI 芯片','芯片',['TPU','Ironwood']],
+['CPU','Central Processing Unit','中央处理器，负责调度与通用计算','芯片',['CPU','Grace','Vera CPU']],
+['HBM','High Bandwidth Memory','高带宽内存，多层 DRAM 堆叠在 GPU 旁','存储',['HBM','内存墙','16 层']],
+['HBF','High Bandwidth Flash','高带宽闪存，用 NAND 堆叠扩容','存储',['HBF','闪存']],
+['TSV','Through-Silicon Via','硅通孔，让多层芯片垂直导通','存储',['TSV','堆叠']],
+['12-Hi / 16-Hi','12-/16-high stack','HBM 堆叠层数（12 层 / 16 层）','存储',['12-Hi','12H','16H','16 栈','12 层']],
+['Memory wall','Memory wall','内存墙：算力增长快于内存带宽，GPU 等数据','存储',['内存墙','读出']],
+['CoWoS','Chip-on-Wafer-on-Substrate','台积电 2.5D 先进封装，把 GPU 与 HBM 放在中介层上','芯片',['CoWoS']],
+['Interposer','Silicon interposer','中介层，连接 GPU 与 HBM 的硅片','芯片',['中介层']],
+['NVLink','NVIDIA NVLink','英伟达 GPU 间高速互连','互连',['NVLink']],
+['NVLink-C2C','NVLink Chip-to-Chip','CPU 与 GPU 之间的一致性互连','互连',['C2C']],
+['PCIe','Peripheral Component Interconnect Express','高速外设总线','互连',['PCIe']],
+['Scale-up','Scale-up network','纵向扩展：机柜内 GPU 组成一个大互连域（NVLink/UALink）','互连',['NVL72','NVL576','机柜','Helios','Kyber','横扫','铜背板']],
+['Scale-out','Scale-out network','横向扩展：用以太网/InfiniBand 把很多机柜连成集群','互连',['Spectrum','扁平网络','交换机','Quantum','集群','Fairwater']],
+['UALink','Ultra Accelerator Link','开放的加速器纵向互连标准（AMD 等）','互连',['Helios','UALink']],
+['FP4 / NVFP4','4-bit floating point','4 位浮点低精度格式，吞吐是 FP8 的 2 倍','芯片',['FP4','NVFP4','量化']],
+['PFLOPS','Peta floating-point operations per second','每秒千万亿次浮点运算','芯片',['PF','PFLOPS']],
+['EFLOPS','Exa floating-point operations per second','每秒百亿亿次浮点运算（1 EF = 1,000 PF）','芯片',['EF','EFLOPS','exaflop']],
+['Tensor parallelism','Tensor parallelism','张量并行：把一层网络切到多颗 GPU 同时算','软件',['张量并行']],
+['Speculative decoding','Speculative decoding','推测解码：小模型先猜，大模型批量验证','软件',['推测解码']],
+['Continuous batching','Continuous batching','连续批处理：推理请求随到随拼批','软件',['连续批处理']],
+['Inference pipeline','Inference pipeline','推理流水线：把模型分段串起来处理','软件',['流水线']],
+['Quantization','Quantization','量化：用更少位数表示权重，换速度','软件',['量化']],
+['Roadmap','Product roadmap','产品路线图（英伟达一年一代）','芯片',['路线图']],
+['Exploding gradients','Exploding gradients','梯度爆炸：训练时梯度失控变大','软件',['梯度爆炸']],
+['Thermal throttling','Thermal throttling','热节流：过热时芯片自动降频','散热',['热节流','降频']],
+['Thermal runaway','Thermal runaway','热失控：温度与功耗互相推高','散热',['热失控']],
+['Hotspot','Thermal hotspot','局部热点：芯片或机房局部过热','散热',['热点']],
+['TDP','Thermal Design Power','热设计功耗：芯片按此设计散热（如 H100 700 W）','散热',['700 W','1,400 W','TDP']],
+['Cold plate','Liquid cold plate','冷板液冷：冷却液流经贴在芯片上的金属板','散热',['冷板','液冷','微通道']],
+['PUE','Power Usage Effectiveness','电能使用效率 = 数据中心总用电 ÷ IT 用电，越接近 1 越好','散热',['冷却','余热','冷却塔']],
+['WUE','Water Usage Effectiveness','用水效率：每 kWh IT 用电消耗的水','散热',['用水']],
+['Reticle limit','Reticle limit','光罩极限：单颗芯片面积上限（约 858 mm²）','芯片',['光罩']],
+['Wafer','Silicon wafer','晶圆：芯片的硅片原料','芯片',['晶圆']],
+['Leakage current','Leakage current','漏电流：晶体管关断时仍流过的电流','芯片',['漏电']],
+['Crosstalk','Crosstalk','串扰：相邻信号线互相干扰','互连',['串扰']],
+['ECC','Error-Correcting Code','纠错码：检测并修正内存位错误','存储',['ECC']],
+['Optical transceiver','Optical transceiver','光模块：电信号与光信号互转','光通信',['光模块','800G','1.6T']],
+['DR4','4-lane parallel single-mode (500 m)','四通道并行单模光模块，约 500 米','光通信',['DR4']],
+['Lane','Lane','通道：一路独立的信号（1.6T = 8 × 200G）','光通信',['通道','八通道','8 ×']],
+['PAM4','4-level Pulse Amplitude Modulation','四电平脉冲幅度调制，每符号 2 比特','光通信',['PAM4','212.5G']],
+['DSP','Digital Signal Processor','数字信号处理器，在光模块里做重定时','光通信',['DSP','重定时']],
+['Retimer','Retimer','重定时器：恢复并重新发送衰减的信号','光通信',['重定时','TRO']],
+['EML','Electro-absorption Modulated Laser','电吸收调制激光器，高速光模块光源','光通信',['EML','激光器']],
+['LPO','Linear Pluggable Optics','线性直驱可插拔光模块（去掉 DSP 省电）','光通信',['LPO','线性直驱']],
+['CPO','Co-Packaged Optics','光电共封装：光引擎与交换芯片封在一起','光通信',['CPO','Photonics','共封装']],
+['OCS','Optical Circuit Switch','光路交换机：用镜面直接切换光路','光通信',['OCS','光路交换']],
+['InfiniBand','InfiniBand','高性能计算专用网络（Quantum-X 系列）','光通信',['Quantum-X','InfiniBand']],
+['Fusion splicing','Fusion splicing','光纤熔接：用电弧把两段光纤熔在一起','光通信',['熔接']],
+['Optical fiber','Optical fiber','光纤：用全反射传光的玻璃纤维','光通信',['光纤','光缆','脉冲']],
+['LEO','Low Earth Orbit','近地轨道（约 160–2,000 km）','航天',['LEO','入轨','轨道']],
+['Suborbital','Suborbital flight','亚轨道飞行：上太空但不绕地球一圈','航天',['亚轨道','HASTE']],
+['Fairing','Payload fairing','整流罩：火箭顶端保护载荷的外壳','航天',['整流罩']],
+['Reusability','Reusability','可复用：回收一级火箭再次使用','航天',['回收','可复用']],
+['Launch window','Launch window','发射窗口：可以发射的时间段','航天',['窗口','倒计时','T-0','发射']],
+['Ground station','Ground station','地面站：接收卫星数据的天线站','航天',['地面站']],
+['Radiation hardening','Radiation hardening','抗辐射加固：让芯片在太空辐射下工作','航天',['抗辐射']],
+['Space debris','Space debris','太空碎片：废弃卫星与火箭残骸','航天',['碎片']],
+['Orbital data center','Orbital data center','轨道数据中心：把算力放到太空','航天',['轨道数据中心','Starcloud']],
+['Solar array','Solar array','太阳翼：航天器的太阳能电池板','航天',['太阳翼']],
+['GW / MW','Gigawatt / Megawatt','吉瓦 / 兆瓦（1 GW = 1,000 MW）','电力',['GW','MW']],
+['PPA','Power Purchase Agreement','购电协议：长期锁定电价与电量','电力',['购电协议']],
+['UPS','Uninterruptible Power Supply','不间断电源：断电瞬间顶上','电力',['UPS','冗余']],
+['BESS','Battery Energy Storage System','电池储能系统（如 Tesla Megapack）','电力',['Megapack','储能']],
+['SOFC','Solid Oxide Fuel Cell','固体氧化物燃料电池（Bloom Energy）','电力',['Bloom','燃料电池']],
+['Gas turbine','Gas turbine','燃气轮机：烧天然气发电','电力',['燃气轮机','轮机']],
+['Interconnection queue','Grid interconnection queue','并网排队：新电源/负荷等待接入电网','电力',['并网','电网','排队']],
+['Substation','Electrical substation','变电站：升降电压、分配电力','电力',['变电站','合闸']],
+['Transformer','Power transformer','变压器：改变电压的核心电力设备','电力',['变压器']],
+['VDC','Volts Direct Current','直流电压（如 800 VDC 机柜配电）','电力',['VDC']],
+['2N redundancy','2N redundancy','双路冗余：两套独立供电互为备份','电力',['2N','双路']],
+['Harmonics','Harmonics','谐波：电网中的高频畸变电流','电力',['谐波']],
+['Transmission line','High-voltage transmission line','高压输电线','电力',['高压线']],
+['Waste heat recovery','Waste heat recovery','余热回收：把机房废热再利用','电力',['余热']],
+['Peak load','Peak load','峰值负荷：用电最高的时刻','电力',['峰值负荷','满负荷']],
+['Nuclear PPA','Nuclear power purchase agreement','核电长期购电协议','电力',['核电']],
+['Hyperscaler','Hyperscaler','超大规模云厂商（AWS、Azure、Google Cloud）','云',['Google Cloud','微软','Stargate','Colossus','Abilene','Hyperion','Prometheus']],
+['Neocloud','Neocloud','新云：专做 GPU 租赁的云厂商（CoreWeave、Nebius）','云',['CoreWeave','Nebius','新云','时租']],
+['Backlog / RPO','Remaining Performance Obligations','剩余履约义务：已签约、未确认的收入（积压订单）','云',['积压','RPO','合同','长约']],
+['GPU-hour','GPU-hour','GPU 时：一颗 GPU 运行一小时的计费单位','云',['时租','小时']],
+['Capex','Capital Expenditure','资本开支：买 GPU、盖机房的投资','金融',['资本开支','扩容','扩张','园区','施工','开工','钢结构','围挡','打桩','平整','工单','安防']],
+['Leverage','Financial leverage','杠杆：借钱放大投资','金融',['杠杆']],
+['Convertible bond','Convertible bond','可转债：可按约定转换成股票的债券','金融',['可转债']],
+['Equity offering','Equity offering','增发股票融资','金融',['增发']],
+['Depreciation','Depreciation','折旧：把设备成本分摊到多年','金融',['折旧','税盾']],
+['Cash flow','Free cash flow','现金流：经营收到的真金白银','金融',['现金流','削减预算','预算','融资飞轮']],
+['Price war','Price war','价格战：竞相降价抢客户','金融',['价格战']],
+['M&A','Mergers & Acquisitions','并购','金融',['并购']],
+['Environmental review','Environmental review','环评：项目对环境影响的审查与听证','金融',['环评']],
+['Export controls','Export controls','出口管制：政府限制先进芯片出口','金融',['出口管制']],
+['Supply chain','Supply chain','供应链：从原料到成品的上下游','金融',['供应链']],
+['Short seller','Short seller','做空者：借股卖出、赌股价下跌','金融',['空头','做空']],
+['Credit spread','Credit spread','信用利差：企业债与国债的收益率差','金融',['信用利差']],
+['Term premium','Term premium','期限溢价：持有长期债券要求的额外回报','金融',['期限溢价']],
+['10Y yield','10-Year Treasury yield','十年期美债收益率，全球资产定价的锚','金融',['十年期']],
+['Bubble','Asset bubble','泡沫：价格远超基本面','金融',['泡沫']],
+['Geopolitical risk','Geopolitical risk','地缘政治风险','金融',['地缘']],
+['Oil shock','Oil price shock','油价冲击','金融',['能源价格','油价']],
+['Cryptojacking','Cryptojacking','加密劫持：偷用别人的算力挖矿','金融',['加密劫持','木马','矿场']],
+['Legacy data center','Legacy data center','过时机房：供电与散热跟不上 AI 机柜','电力',['过时机房']],
+['Tech debt','Technical debt','技术债：为求快留下的后续维护负担','软件',['技术债']],
+['Field O&M','Field operations & maintenance','现场运维','电力',['运维']],
+['FOMC','Federal Open Market Committee','美联储联邦公开市场委员会，决定政策利率','金融',['FOMC','美联储']],
+['Earnings beat / miss','Earnings beat / miss','业绩超预期 / 不及预期','金融',['财报','业绩']],
+['Guidance','Forward guidance','业绩/资本开支指引','金融',['指引']],
+['Chokepoint','Chokepoint','咽喉要道（如霍尔木兹海峡）','金融',['霍尔木兹','海峡']],
+['Midterm election','Midterm election','美国中期选举（总统任期中间的国会选举）','金融',['中期选举']],
+['Jevons paradox','Jevons paradox','杰文斯悖论：效率提高反而让总需求上升','金融',['杰文斯']],
+['Inventory write-down','Inventory write-down','存货减记：库存卖不出去时计提损失','金融',['减记']],
+];
+const GL={};for(const [k,f,z,cat,m] of GL_RAW)GL[k]={k,f,z,cat,m};
+// 显式指定（优先于自动匹配）
+const EN_FIX={
+ w_second:['Legacy data center','Field O&M'],
+ slime:['Leakage current'],bats:['Crosstalk'],rust:['Legacy data center','PUE'],imp:['Hotspot','Thermal throttling'],thief:['Cryptojacking'],snake:['Export controls'],vine:['Supply chain'],reticle:['Reticle limit'],tower:['WUE'],ghost:['Short seller'],gambler:['Bubble','Leverage'],hound:['Credit spread'],oilsnake:['Oil shock'],rift:['Geopolitical risk','Chokepoint'],golem:['Term premium'],e_wafer:['Wafer','HBM'],e_trafo:['Transformer'],e_eye:['ECC'],e_dark:['Short seller'],b_wall:['Memory wall','HBM'],b_grid:['Interconnection queue','GW / MW'],b_rate:['10Y yield','Term premium'],
+ ember:['Field O&M'],groundst:['Ground station'],coldloop:['Cold plate','PUE'],colossus:['Hyperscaler','GPU'],megapack:['BESS'],bloomcell:['SOFC'],abilene:['GW / MW','Hyperscaler'],prometheus:['GW / MW'],hyperion:['GW / MW'],fairwater:['Scale-out'],nvl72:['NVLink','Scale-up'],ironwood:['TPU'],spectrum:['Scale-out'],lanes:['Lane','Optical transceiver'],vdc800:['VDC'],electron:['Fairing'],neutron:['Reusability'],wafer:['Wafer'],cowos:['CoWoS','Interposer'],microchan:['Cold plate'],c2c:['NVLink-C2C'],hbm16:['HBM','12-Hi / 16-Hi'],turbine:['Gas turbine'],ledger:['Cash flow'],
+ fire:['Harmonics'],block:['Cold plate'],str:['Thermal throttling'],energy:['PUE'],draw:['HBM'],poison:['Thermal runaway'],weak:['Thermal throttling'],vuln:['Supply chain'],heal:['Field O&M'],dex:['Retimer'],
+ burn:['Hotspot'],daze:['Crosstalk'],debt:['Tech debt'],slimed:['Leakage current'],
+ a_strike:['GPU','TDP'],a_hbm3:['HBM'],a_nvlhs:['NVLink'],a_runaway:['Thermal runaway'],a_b200:['GPU','FP4 / NVFP4'],a_rubin:['GPU','HBM'],a_mi455:['GPU','HBM'],a_nvl576:['Scale-up','EFLOPS','GPU'],a_helios:['Scale-up','UALink','HBM'],a_vera:['CPU','NVLink-C2C'],w_amd6gw:['GW / MW','Backlog / RPO'],
+ a_ironwood:['TPU','Scale-up','EFLOPS'],a_gb300:['Scale-up','Cold plate'],a_kyber:['Scale-up','VDC'],a_cpx:['GPU','FP4 / NVFP4'],a_spectrum:['Scale-out','CPO'],o_cpo:['CPO','Scale-out'],o_qx:['CPO','InfiniBand'],o_16t:['Optical transceiver','DR4','Retimer'],o_800g:['Optical transceiver','Lane'],o_burst:['Optical transceiver','Lane'],
+ o_electron:['LEO','Launch window'],o_neutron:['Reusability','LEO'],o_98:['LEO','Launch window'],o_double:['LEO','Launch window'],o_sat:['Orbital data center','LEO'],o_orbitdc:['Orbital data center','GW / MW'],a_neutron:['Reusability'],
+ d_rent:['Neocloud','GPU-hour'],d_contract:['Hyperscaler','Backlog / RPO'],d_cwbacklog:['Neocloud','Backlog / RPO'],w_blood:['Neocloud','Leverage'],w_barricade:['Neocloud','Backlog / RPO'],w_demon:['Hyperscaler','Backlog / RPO'],d_backlog:['Backlog / RPO'],
+ w_inflame:['PPA','GW / MW'],w_metal:['UPS'],a_ups:['BESS','UPS'],a_bloom:['SOFC'],a_800v:['VDC'],d_turbine:['Gas turbine'],d_gridq:['Interconnection queue'],a_prom:['GW / MW'],w_imperv:['Nuclear PPA','PPA'],a_colossus:['Hyperscaler','GPU'],a_stargate:['Hyperscaler','GW / MW'],w_bludgeon:['GW / MW','Hyperscaler'],w_limit:['GW / MW'],
+};
+function entText(o){return (o.n||'')+' '+(o.ds||o.d||'')+' '+(o.fl||'')}
+const _termCache={};
+function termsFor(kind,id){
+ const ck=kind+':'+id;if(_termCache[ck])return _termCache[ck];
+ const o=kind==='card'?CARDS[id]:kind==='relic'?RELICS[id]:kind==='enemy'?ENEMIES[id]:kind==='potion'?POTIONS[id]:null;
+ const out=[];if(!o)return out;
+ for(const k of (EN_FIX[id]||[]))if(GL[k]&&!out.includes(k))out.push(k);
+ const nm=o.n||'',all=entText(o);
+ for(const pass of [nm,all])for(const g of GL_RAW){if(out.length>=3)break;const k=g[0];if(out.includes(k))continue;if(g[4].some(w=>pass.includes(w)))out.push(k)}
+ return _termCache[ck]=out.slice(0,3);
+}
+function enLabel(kind,id){const t=termsFor(kind,id);return t.length?t[0]:''}
+function termsHTML(kind,id){const t=termsFor(kind,id);if(!t.length)return '';markSeen(t);
+ return `<div class="entip">${t.map(k=>{const g=GL[k];return `<div>📘 <b>${esc(k)}</b> = <i>${esc(g.f)}</i><br><span>${esc(g.z)}</span></div>`}).join('')}</div>`}
+// ===== 词汇本存储（guarded localStorage） =====
+const VOCAB_KEY='aispire_vocab_v1';let VOCAB=null;
+function vocab(){if(VOCAB)return VOCAB;try{VOCAB=JSON.parse(localStorage.getItem(VOCAB_KEY)||'{}')||{}}catch(e){VOCAB={}}return VOCAB}
+let _vsaveT=0;
+function vocabSave(){if(_vsaveT)return;_vsaveT=1;const f=()=>{_vsaveT=0;try{localStorage.setItem(VOCAB_KEY,JSON.stringify(vocab()))}catch(e){}};try{(window.requestIdleCallback||((cb)=>Promise.resolve().then(cb)))(f)}catch(e){f()}}
+function markSeen(list){const v=vocab();let ch=0;for(const k of list){if(!GL[k])continue;if(!v[k]){v[k]={s:0,ok:0,bad:0};ch=1}if(v[k].s<999){v[k].s++;ch=1}}if(ch)vocabSave()}
+function seenEntityTerms(){const s=new Set();if(typeof run!=='undefined'&&run){for(const c of run.deck)termsFor('card',c.id).forEach(k=>s.add(k));for(const r of run.relics)termsFor('relic',r).forEach(k=>s.add(k))}
+ if(typeof cs!=='undefined'&&cs)for(const e of cs.enemies)termsFor('enemy',e.id).forEach(k=>s.add(k));for(const id of QZ_EN)termsFor('enemy',id).forEach(k=>s.add(k));
+ const v=vocab();for(const k in v)if(GL[k])s.add(k);return [...s]}
+function showVocab(filter){
+ const v=vocab();const cats=[...new Set(GL_RAW.map(g=>g[3]))];const f=filter||'全部';
+ const learned=GL_RAW.filter(g=>v[g[0]]),n=learned.length;
+ const list=learned.filter(g=>f==='全部'||g[3]===f);
+ modal(`<h2>📒 词汇本</h2><div class="sub" style="margin-bottom:6px">已学会 <b>${n}</b> / ${GL_RAW.length} 个术语。悬停（手机长按）卡牌、遗物、敌人即可学习新词；战斗后的英语小测会记录对错。</div>
+ <div class="vtabs">${['全部',...cats].map(c=>`<button class="btn small ${c===f?'':'blue'}" onclick="showVocab('${c}')">${c}</button>`).join('')}</div>
+ <div class="panel vocab">${list.length?list.map(g=>{const r=v[g[0]];return `<div class="vw"><div class="vk">${esc(g[0])} <span class="vc">${g[3]}</span></div><div class="vf">${esc(g[1])}</div><div class="vz">${esc(g[2])}</div><div class="vs">见过 ${r.s} 次 · 小测 ✔${r.ok} ✘${r.bad}</div></div>`}).join(''):'<p>这个分类还没有学到的词。开始一局游戏吧！</p>'}</div>
+ <button class="btn" onclick="closeModal()">关闭</button>`);
+}
+// ===== 英语小测 =====
+const FACTS=[
+ {id:'a_strike',q:'NVIDIA H100 每颗 GPU 配多少 HBM3？',a:'80 GB',w:['288 GB','432 GB','16 GB']},
+ {id:'a_hbm3',q:'H100 的 HBM3 带宽约是？',a:'3.35 TB/s',w:['19.2 TB/s','0.9 TB/s','23.3 TB/s']},
+ {id:'a_rubin',q:'Rubin 每颗 GPU 配多少 HBM4？',a:'288 GB',w:['80 GB','1 TB','36 GB']},
+ {id:'a_hbm4',q:'Rubin 每颗 GPU 的 HBM4 带宽是？',a:'19.2 TB/s',w:['3.35 TB/s','8 TB/s','1.8 TB/s']},
+ {id:'a_mi455',q:'AMD MI455X 的 HBM4 容量是？',a:'432 GB',w:['288 GB','192 GB','80 GB']},
+ {id:'a_helios',q:'AMD Helios 机柜里有多少颗 MI455X？',a:'72 颗',w:['8 颗','576 颗','36 颗']},
+ {id:'a_vera',q:'NVIDIA Vera CPU 有多少个 Olympus 核心？',a:'88 个',w:['72 个','144 个','36 个']},
+ {id:'a_nvl576',q:'GTC 2025 公布的 Rubin Ultra NVL576 FP4 推理算力目标是？',a:'15 EFLOPS',w:['1.44 EFLOPS','3.6 EFLOPS','42.5 EFLOPS']},
+ {id:'a_ironwood',q:'一个 TPU Ironwood 舱（pod）最多有多少颗芯片？',a:'9,216',w:['72','576','200,000']},
+ {id:'a_nvl72',q:'GB200 NVL72 里 GPU 与 Grace CPU 的数量是？',a:'72 GPU + 36 CPU',w:['8 GPU + 2 CPU','144 GPU + 72 CPU','72 GPU + 72 CPU']},
+ {id:'a_fp4',q:'GB200 NVL72 的 FP4 算力是 FP8 的几倍？',a:'2 倍',w:['4 倍','1.5 倍','8 倍']},
+ {id:'a_kyber',q:'Rubin Ultra NVL576（Kyber）机柜预计功耗约多少？',a:'约 600 kW',w:['约 135 kW','约 60 kW','约 6 MW']},
+ {id:'o_16t',q:'1.6T 光模块由几路多少速率的通道组成？',a:'8 × 200G',w:['4 × 100G','16 × 50G','2 × 800G']},
+ {id:'o_800g',q:'800G 光模块的通道构成是？',a:'8 × 100G',w:['8 × 200G','4 × 400G','2 × 400G']},
+ {id:'o_electron',q:'Rocket Lab Electron 的 LEO 运力约是？',a:'300 kg',w:['13,000 kg','60 kg','8,500 kg']},
+ {id:'o_neutron',q:'Neutron 的 LEO 运力（可复用前）约是？',a:'13,000 kg',w:['300 kg','1,200 kg','52,000 kg']},
+ {id:'o_sat',q:'Starcloud-1 卫星约多重？',a:'60 kg',w:['300 kg','5 t','1 kg']},
+ {id:'a_bloom',q:'Bloom Energy Server 平均寿命电效率约是？',a:'54%',w:['25%','90%','15%']},
+ {id:'w_bludgeon',q:'Stargate Abilene 园区预计用电约多少？',a:'1.2 GW',w:['150 MW','5 GW','12 GW']},
+ {id:'w_limit',q:'Meta Hyperion 园区最终可扩展到多少？',a:'5 GW',w:['1 GW','500 MW','20 GW']},
+ {id:'d_cwbacklog',q:'CoreWeave 2026 Q2 的积压订单约多少？',a:'约 1,040 亿美元',w:['约 104 亿美元','约 5,139 亿美元','约 25.75 亿美元']},
+ {id:'w_demon',q:'Google Cloud 2026 Q2 收入同比增长？',a:'+82%',w:['+8%','+28%','+182%']},
+ {id:'a_hbf',q:'HBF 高带宽闪存规范的最大容量是？',a:'512 GB',w:['36 GB','1 TB','64 GB']},
+ {id:'a_mu4',q:'美光 HBM4 12H 单栈容量是？',a:'36 GB',w:['48 GB','16 GB','288 GB']},
+];
+let QZ=null,QZ_EN=[];
+function buildQuiz(){
+ const pool=seenEntityTerms().filter(k=>GL[k]);const qs=[];
+ const deckIds=new Set((run?run.deck:[]).map(c=>c.id));
+ const facts=shuffle(FACTS.filter(f=>deckIds.has(f.id)));
+ const terms=shuffle(pool.length>=4?pool:GL_RAW.map(g=>g[0]));
+ const other=k=>shuffle(GL_RAW.map(g=>g[0]).filter(x=>x!==k));
+ let fi=0,ti=0;
+ for(let n=0;n<3;n++){
+  const kind=(n===2&&facts[fi])?'fact':pick(['t2z','z2t','t2f']);
+  if(kind==='fact'){const f=facts[fi++];qs.push({q:f.q,a:f.a,opts:shuffle([f.a,...f.w]),ex:'出自卡牌「'+CARDS[f.id].n+'」的公开规格。',term:null});continue}
+  const k=terms[ti++%terms.length],g=GL[k],ws=other(k).slice(0,3).map(x=>GL[x]);
+  if(kind==='t2z')qs.push({q:`「${k}」是什么意思？`,a:g.z,opts:shuffle([g.z,...ws.map(w=>w.z)]),ex:`${k} = ${g.f}`,term:k});
+  else if(kind==='z2t')qs.push({q:`哪个英文术语的意思是：「${g.z}」？`,a:k,opts:shuffle([k,...ws.map(w=>w.k)]),ex:`${k} = ${g.f}`,term:k});
+  else qs.push({q:`「${k}」的英文全称是？`,a:g.f,opts:shuffle([g.f,...ws.map(w=>w.f)]),ex:`${k}：${g.z}`,term:k});
+ }
+ return qs;
+}
+function startQuiz(onDone){QZ={qs:buildQuiz(),i:0,ok:0,done:onDone,ans:null};renderQuiz()}
+function renderQuiz(){
+ const q=QZ.qs[QZ.i];
+ modal(`<h2>📝 英语小测 ${QZ.i+1}/3</h2><div class="panel quiz"><div class="qq">${esc(q.q)}</div>
+ <div class="opts">${q.opts.map((o,i)=>{let cl='';if(QZ.ans!==null){if(o===q.a)cl='qok';else if(i===QZ.ans)cl='qbad'}return `<button class="opt ${cl}" data-qa="${i}" ${QZ.ans!==null?'disabled':''} onclick="answerQuiz(${i})">${esc(o)}</button>`}).join('')}</div>
+ ${QZ.ans!==null?`<div class="qex">${q.opts[QZ.ans]===q.a?'✔ 答对了！+10 金币':'✘ 正确答案：'+esc(q.a)}<br><span>${esc(q.ex)}</span></div>`:''}</div>
+ ${QZ.ans!==null?`<button class="btn" id="quiz-next" onclick="nextQuiz()">${QZ.i<2?'下一题':'查看结果'}</button>`:`<button class="btn small blue" onclick="QZ.i=3;finishQuiz()">放弃小测</button>`}`);
+}
+function answerQuiz(i){if(QZ.ans!==null)return;QZ.ans=i;const q=QZ.qs[QZ.i],ok=q.opts[i]===q.a;if(ok){QZ.ok++;run.gold+=10;run.stats.gold+=10}
+ if(q.term){const v=vocab();v[q.term]=v[q.term]||{s:1,ok:0,bad:0};v[q.term][ok?'ok':'bad']++;vocabSave()}renderQuiz()}
+function nextQuiz(){QZ.ans=null;QZ.i++;if(QZ.i>=3)return finishQuiz();renderQuiz()}
+function finishQuiz(){
+ let msg=`答对 ${QZ.ok}/3，获得 ${QZ.ok*10} 金币。`;
+ if(QZ.ok===3){const r=upgradeRandom(1);msg+=r!=='无'?` 全对奖励：升级「${r}」！`:' 全对奖励：+20 金币！';if(r==='无'){run.gold+=20;run.stats.gold+=20}}
+ const done=QZ.done;QZ=null;modal(`<h2>📝 小测结束</h2><div class="panel" style="max-width:420px">${esc(msg)}</div><button class="btn" id="quiz-close" onclick="closeModal();window._quizDone&&window._quizDone()">好的</button>`);window._quizDone=done;
+}
+// ===== 供应链联动 =====
+const CAT={
+ gpu:['a_strike','a_b200','a_mi455','a_rubin','a_cpx','a_tp','a_ironwood','a_helios','a_nvl576','a_pcie','w_sword','w_anger','a_batch'],
+ hbm:['a_hbm3','a_hbm3e','a_mu4','a_readout','a_hbm4','a_hbm4e','a_hbf','a_hbmstack'],
+ pow:['d_turbine','a_ups','a_bloom','a_800v','w_inflame','w_metal','w_imperv','d_gridq','a_prom','o_solar','a_coldplate','a_gb300','w_bodyslam','w_entrench','w_twin','w_bash','w_limit','w_reaper','a_kyber'],
+ opt:['o_strike','o_800g','o_16t','o_fusion','o_dsp','o_eml','o_ocs','o_cpo','o_qx','a_spectrum','o_lpo','o_burst','o_ground'],
+ clu:['a_nvlink','a_ironwood','a_nvl72','a_gb300','a_kyber','a_colossus','a_stargate','w_bludgeon','a_pipeline','a_helios','a_nvl576','o_orbitdc','o_qx','o_ocs','w_whirl'],
+ neo:['d_rent','d_contract','d_cwbacklog','w_blood','w_barricade','w_demon','d_backlog','w_amd6gw'],
+ leo:['o_electron','o_haste','o_sat','o_double','o_98','o_neutron','o_window','o_tminus','a_neutron','o_reuse','o_shell'],
+};
+const POW_RELICS=['coldloop','microchan','turbine','bloomcell','megapack','hyperion','abilene','prometheus','vdc800'];
+const CATI={};for(const k in CAT)for(const id of CAT[k])(CATI[id]=CATI[id]||[]).push(k);
+function catOf(id){return CATI[id]||[]}
+const COMBOS={
+ gpuhbm:{n:'GPU → HBM 需求',ic:'🧱',cats:['gpu','hbm'],short:'本回合每打出 1 张 GPU 牌，之后的 HBM 牌额外 +1 HBM 层、+1 格挡（最多 +2 / +2）',
+  chain:'每一代 GPU 都配更大更快的 HBM：H100 80 GB HBM3 → Rubin 288 GB HBM4 → MI455X 432 GB HBM4（12 栈）。GPU 出货越多，HBM 堆栈需求越大；美光称同等 bit 下 HBM3E 约消耗 DDR5 3 倍的晶圆，于是挤占普通 DRAM / NAND 产能、推高内存价格。',
+  co:'MU（美光）、SK hynix、Samsung、SNDK（闪迪，HBF 高带宽闪存）、NVDA、AMD',src:['micron3x','h100','rubin','mi455']},
+ power:{n:'电力封顶',ic:'⚡',cats:['gpu','pow'],short:'GPU 攻击单段伤害上限 = 20 + 12 × 本场电力/液冷数（电力类遗物各算 1）',
+  chain:'GPU 再强也要通电和散热：Vera Rubin NVL72 单机柜 187–227 kW，Rubin Ultra NVL576 预计约 600 kW。并网排队、变压器短缺时，可用电力就是算力上限；燃料电池、燃气轮机、储能和液冷（降低 PUE）能释放更多 IT 功率。',
+  co:'BE（Bloom Energy）、GEV（GE Vernova）、TSLA（Megapack）、VRT（Vertiv）、ETN（Eaton）、NVDA',src:['vrds','kyber','bloom','colpower']},
+ optics:{n:'光互连 × 集群规模',ic:'🔦',cats:['opt','clu'],short:'本场每打出 1 张光通信牌，集群规模牌伤害 +15%（最多 +60%）',
+  chain:'集群越大，GPU 之间的通信越多：机柜内的 scale-up 域（NVLink / UALink）之外，scale-out 需要海量 800G / 1.6T 光模块和交换机。CPO 把光引擎和交换芯片封在一起，激光器减到 1/4、功效提高 3.5 倍。光带宽不够时，再多 GPU 也只能等数据。',
+  co:'LITE（Lumentum）、COHR（Coherent）、AVGO（Broadcom）、NVDA（Spectrum-X / Quantum-X Photonics）',src:['optics','cpo','lum16']},
+ neo:{n:'新云吃 GPU',ic:'☁️',cats:['neo','gpu'],short:'打出云/新云牌时，本场每部署过 1 张 GPU 牌，积压订单 +2（最多 +10）',
+  chain:'新云（Neocloud）先买 GPU（往往靠举债），再把容量签成多年合同，形成积压订单（RPO），按「GPU 数 × 每 GPU 小时价 × 小时数」确认收入。GPU 交付越多，可确认的收入越多；但利息与折旧也随之上升（CoreWeave 2026 Q2 净利息支出 6.40 亿美元）。',
+  co:'CRWV（CoreWeave）、NBIS（Nebius）、NVDA、DELL（服务器整机）、SMCI、GOOG（Google Cloud）、MSFT',src:['cw2q26','nebius2','gcloud']},
+ leo:{n:'LEO 光链路',ic:'🛰️',cats:['leo','opt'],short:'上回合打出过光通信牌时，火箭发射伤害 +25%',
+  chain:'轨道算力要先由火箭送上 LEO（近地轨道），再靠激光链路 / 地面站把数据传回。Starcloud-1（60 kg）把 H100 带上了 325 km 轨道；Electron 已完成第 98 次发射，Neutron（LEO 13 t）首飞推迟到 2027 年。',
+  co:'RKLB（Rocket Lab）、NVDA（Starcloud 搭载 H100）',src:['starcloud','electron98','neutron27']},
+};
+function cbInit(){let pow=0;for(const r of POW_RELICS)if(hasRelic(r))pow++;return {gpu:0,gpuT:0,pow,opt:0,optT:0,optLast:0,fired:{},ft:{}}}
+function powerCap(){return 20+12*(cs&&cs.cb?cs.cb.pow:0)}
+function optMult(){return 1+0.15*Math.min(cs&&cs.cb?cs.cb.opt:0,4)}
+// 在 g.atk 之前调整基础伤害
+function comboAtk(n){
+ if(!cs||!cs.cb||!cs.curCard)return n;const cats=catOf(cs.curCard);
+ if(cats.includes('clu')&&cs.cb.opt>0){n=Math.floor(n*optMult());cbFire('optics')}
+ if(cats.includes('gpu')){const cap=powerCap();if(n>cap){n=cap;cbFire('power','⚡封顶 '+cap)}}
+ return n;
+}
+function cbFire(id,txt){if(!cs.cb)return;cs.cb.fired[id]=(cs.cb.fired[id]||0)+1;const key=cs.turn+':'+cs.turnCards;if(cs.cb.ft[id]!==key){cs.cb.ft[id]=key;try{float(cs.p,COMBOS[id].ic+' '+(txt||COMBOS[id].n),'st')}catch(e){}}}
+function comboBefore(c){if(!cs.cb)cs.cb=cbInit();cs.curCard=c.id}
+function comboAfter(c){
+ const cb=cs.cb,cats=catOf(c.id),g=cs.g;cs.curCard=null;
+ if(cats.includes('hbm')&&cb.gpuT>0){const k=Math.min(cb.gpuT,2);g.layer(k);g.rawBlk(k);cbFire('gpuhbm','🧱GPU→HBM +'+k+'层')}
+ if(cats.includes('neo')&&cb.gpu>0){const k=2*Math.min(cb.gpu,5);g.self('backlog',k);cbFire('neo','☁️新云 +'+k+'积压')}
+ if(cats.includes('gpu')){cb.gpu++;cb.gpuT++}
+ if(cats.includes('pow'))cb.pow++;
+ if(cats.includes('opt')){cb.opt++;cb.optT++}
+}
+function comboTurn(){if(!cs.cb)cs.cb=cbInit();cs.cb.optLast=cs.cb.optT;cs.cb.gpuT=0;cs.cb.optT=0}
+function launchMult(){if(cs&&cs.cb&&cs.cb.optLast>0){cbFire('leo');return 1.25}return 1}
+function deckCats(){const s=new Set();if(cs&&cs.cb&&cs.cb.pow>0)s.add('pow');if(cs){for(const c of [...cs.hand,...cs.draw,...cs.discard,...cs.exhaust])catOf(c.id).forEach(k=>s.add(k))}return s}
+function comboBarHTML(){
+ if(!cs||!cs.cb)return '';const s=deckCats(),cb=cs.cb;const out=[];
+ for(const id in COMBOS){const C=COMBOS[id];if(!C.cats.every(k=>s.has(k)))continue;
+  let st='';if(id==='gpuhbm')st='GPU×'+cb.gpuT;else if(id==='power')st='上限 '+powerCap();else if(id==='optics')st='×'+optMult().toFixed(2);else if(id==='neo')st='+'+2*Math.min(cb.gpu,5);else if(id==='leo')st=cb.optLast||cb.optT?'就绪':'—';
+  out.push(`<span class="cbchip ${cb.fired[id]?'on':''}" data-tip="combo:${id}">${C.ic}<span class="lg"> ${C.n}</span> <b>${st}</b></span>`)}
+ return out.length?`<div class="combobar">${out.join('')}</div>`:'';
+}
+function comboTip(id){const C=COMBOS[id];if(!C)return '';let cur='';
+ if(cs&&cs.cb){const cb=cs.cb;cur=`<div class="src">本场：GPU ${cb.gpu} · 电力/液冷 ${cb.pow} · 光通信 ${cb.opt}（本回合 GPU ${cb.gpuT}）</div>`}
+ return `<div class="k">${C.ic} 供应链联动：${C.n}</div><div>${C.short}</div><div class="fl">🔗 ${C.chain}</div><div class="src">涉及公司：${C.co}</div>${cur}<div class="src">📚 ${C.src.map(s=>SRC[s]?esc(SRC[s].t):s).join('；')}</div><div class="src" style="color:#d9a35a">教育用途，非投资建议。</div>`}
+function cardComboLines(id){const cats=catOf(id);if(!cats.length)return '';const cs2=Object.values(COMBOS).filter(C=>C.cats.some(k=>cats.includes(k)));if(!cs2.length)return '';
+ const tk=[...new Set(cs2.flatMap(C=>(C.co.match(/\b[A-Z]{2,5}\b/g)||[])))].slice(0,10);
+ return `<div class="cbtip">🔗 供应链联动：${cs2.map(C=>C.ic+' '+C.n).join(' · ')}<br>涉及：${tk.join(' ')}<br><span style="color:#d9a35a">悬停战斗顶部联动标签看完整因果链 · 教育用途，非投资建议</span></div>`}
+// ===== 真实市场事件 =====
+const MKT_EVENTS=[
+ {id:'m_fomc',mk:1,n:'FOMC 议息：加息 25 bp',pic:'🏦',src:['fomc2609'],txt:'2026-09-16，美联储 FOMC 全票将联邦基金利率目标区间上调 0.25 个百分点至 3.75%–4.00%，理由是通胀仍偏高。',
+  mech:'利率↑ → 借钱买 GPU / 盖机房的成本↑，成长股估值的折现率↑ → 高杠杆的新云（CRWV 等）最敏感；现金充裕的大厂受影响较小。',
+  opts:[{t:'📈 看多：继续借钱扩张',d:'获得 90 金币，但获得诅咒「技术债」（利息负担）',fn:()=>{run.gold+=90;run.stats.gold+=90;run.deck.push(newCard('debt'));return '你签下了更贵的贷款：+90 金币，背上技术债。'}},
+   {t:'📉 看空：降杠杆防守',d:'失去 25 金币，移除一张牌（精简资产负债表）',fn:()=>{run.gold=Math.max(0,run.gold-25);return '__remove'}}]},
+ {id:'m_10y',mk:1,n:'十年期美债收益率触及 5%',pic:'📈',src:['ust5'],txt:'2023-10-19，美国十年期国债收益率自 2007 年以来首次触及 5%。它是全球资产定价的「锚」。',
+  mech:'无风险利率↑ → 远期现金流的现值↓ → 长久期成长股（AI、云、太空）估值承压；同时企业债信用利差可能走阔，融资更难。',
+  opts:[{t:'📈 看多：逢低买入成长股',d:'50%：获得 120 金币；50%：失去 10 生命',fn:()=>{if(Math.random()<.5){run.gold+=120;run.stats.gold+=120;return '收益率回落，你抄到了底：+120 金币。'}run.hp-=10;return '收益率继续上行，账面浮亏：失去 10 生命。'}},
+   {t:'📉 看空：转向现金/短债',d:'稳拿 35 金币',fn:()=>{run.gold+=35;run.stats.gold+=35;return '5% 的无风险收益也不错：+35 金币。'}}]},
+ {id:'m_export',mk:1,n:'出口管制：H20 需要许可证',pic:'🚫',src:['h20','h20b'],txt:'2025 年 4 月，美国要求 NVIDIA H20 对华出口需许可证。NVIDIA 先预计最高 55 亿美元费用，最终 FY26 Q1 计提 45 亿美元，另有约 25 亿美元 H20 收入无法发货。',
+  mech:'管制 → 受限市场收入消失 + 库存与采购承诺减记 → 芯片商利润↓；部分物料可再利用，减记会比预期少（实际 45 亿 < 预计 55 亿）。',
+  opts:[{t:'📈 看多：押注许可放开',d:'40%：获得一件随机遗物；60%：失去 12 生命',fn:()=>{if(Math.random()<.4){const id=randomRelic();gainRelic(id);return id?'许可放行！获得「'+RELICS[id].n+'」。':'许可放行，但仓库空空。'}run.hp-=12;return '许可迟迟未批，失去 12 生命。'}},
+   {t:'📉 看空：减记库存、物料再利用',d:'失去 30 金币，随机升级 2 张牌',fn:()=>{run.gold=Math.max(0,run.gold-30);return '减记后你把物料改作他用，升级了：'+upgradeRandom(2)}}]},
+ {id:'m_earn',mk:1,n:'财报季：AWS 超预期，资本开支上调',pic:'📊',src:['amzn2q26','amzn2q26ir'],txt:'2026-07-30，亚马逊 Q2 财报：AWS 收入 422 亿美元（+37%），并把 2026 年资本开支指引上调 10% 至约 2,200 亿美元（部分因内存涨价）；盘后股价涨近 9%。',
+  mech:'云收入超预期 → 证明 AI 投资有回报 → 资本开支上调 → 订单沿供应链传导到 GPU（NVDA）、内存（MU）、光模块（LITE / COHR）、电力设备（GEV / VRT）。反过来，若业绩不及预期，整条链会一起回调。',
+  opts:[{t:'📈 看多：押注供应链受益',d:'获得 2 张随机罕见牌，失去 6 生命',fn:()=>{const a=randomCardOf('uncommon'),b=randomCardOf('uncommon');run.deck.push(a,b);run.hp-=6;return '订单涌来：获得「'+cname(a)+'」「'+cname(b)+'」，加班失去 6 生命。'}},
+   {t:'📉 看空：担心自由现金流被吃掉',d:'最大生命 +4，回复 10 生命',fn:()=>{run.maxHp+=4;run.hp=Math.min(run.maxHp,run.hp+14);return '你保留现金、稳住阵脚。'}}]},
+ {id:'m_deepseek',mk:1,n:'DeepSeek 冲击',pic:'🐋',src:['deepseek'],txt:'2025-01-27，DeepSeek 低成本模型引发科技股抛售，NVIDIA 单日下跌约 17%，市值蒸发约 5,930 亿美元，创美股单日纪录。',
+  mech:'训练更便宜 → 市场担心 GPU 需求↓（看空）；但杰文斯悖论认为效率↑ 会让推理需求更大（看多）。NVIDIA 当天表示推理仍需要大量芯片。',
+  opts:[{t:'📈 看多：杰文斯悖论',d:'获得一张随机稀有牌，失去 10 生命',fn:()=>{const c=randomCardOf('rare');run.deck.push(c);run.hp-=10;return '你逆势加仓：获得「'+cname(c)+'」，失去 10 生命。'}},
+   {t:'📉 看空：先减仓',d:'获得 50 金币，失去 4 最大生命',fn:()=>{run.gold+=50;run.stats.gold+=50;run.maxHp-=4;run.hp=Math.min(run.hp,run.maxHp);return '落袋为安：+50 金币。'}}]},
+ {id:'m_hormuz',mk:1,n:'霍尔木兹海峡紧张',pic:'🛢️',src:['hormuz'],txt:'据美国 EIA，2024 年经霍尔木兹海峡的石油流量平均约 2,000 万桶/日，约占全球石油液体消费的 20%。',
+  mech:'海峡受阻 → 油气价格↑ → 燃气发电成本↑ → 数据中心电价与通胀预期↑ → 利率↑。自建电源（燃料电池、储能）与长期 PPA 的价值上升。',
+  opts:[{t:'📈 看多：押注冲击短暂',d:'获得 60 金币，失去 6 生命',fn:()=>{run.gold+=60;run.stats.gold+=60;run.hp-=6;return '油价很快回落：+60 金币，失去 6 生命。'}},
+   {t:'📉 看空：锁定自建电源',d:'花 50 金币，获得遗物「2.5MW 燃气轮机」（已有则改为 Bloom 燃料电池块）',ok:()=>run.gold>=50,fn:()=>{run.gold-=50;const id=!run.relics.includes('turbine')?'turbine':!run.relics.includes('bloomcell')?'bloomcell':null;if(id){gainRelic(id);return '获得「'+RELICS[id].n+'」。'}run.gold+=50;return '你已经有足够的自建电源，退回 50 金币。'}}]},
+ {id:'m_capex',mk:1,n:'AI 资本开支上调',pic:'🏗️',src:['amzn2q26','gcloud'],txt:'亚马逊把 2026 年资本开支上调到约 2,200 亿美元；Google Cloud 积压订单达 5,139 亿美元，约 50% 在 24 个月内确认。',
+  mech:'大厂资本开支↑ → GPU / HBM / 光模块 / 电力设备订单↑；但若需求不及预期，可能出现过度建设与折旧压力。',
+  opts:[{t:'📈 看多：顺着资本开支链加仓',d:'随机升级 3 张牌，失去 8 生命',fn:()=>{run.hp-=8;return '扩产！升级了：'+upgradeRandom(3)}},
+   {t:'📉 看空：担心过度建设',d:'移除一张牌',fn:()=>'__remove'}]},
+ {id:'m_hbmprice',mk:1,n:'HBM 涨价（报道）',pic:'🧱',src:['hbmprice','amzn2q26'],txt:'据 TrendForce 2025-12 报道，三星与 SK 海力士对 2026 年 HBM3E 订单提价近 20%；亚马逊也称内存涨价是其上调资本开支的原因之一。',
+  mech:'HBM 供不应求 → 原厂提价 → 内存厂（MU、SK hynix、Samsung、SNDK）利润↑；GPU 厂与云厂成本↑、毛利承压。',
+  opts:[{t:'📈 看多：提前锁定长协',d:'花 40 金币，获得一张随机稀有牌',ok:()=>run.gold>=40,fn:()=>{run.gold-=40;const c=randomCardOf('rare');run.deck.push(c);return '长协锁定：获得「'+cname(c)+'」。'}},
+   {t:'📉 看空：等价格回落',d:'获得 30 金币',fn:()=>{run.gold+=30;run.stats.gold+=30;return '你暂缓采购，省下 30 金币。'}}]},
+ {id:'m_midterm',mk:1,n:'美国中期选举',pic:'🗳️',src:['midterm'],txt:'按 2 U.S.C. §7，联邦选举日为偶数年 11 月第一个星期一之后的星期二——2026 年中期选举在 11 月 3 日。',
+  mech:'选举结果 → 能源许可、芯片补贴、出口管制、税收政策预期变化 → 电力、芯片、云板块波动加大；结果落地后不确定性下降。',
+  opts:[{t:'📈 看多：押注政策利好',d:'50%：随机升级 3 张牌；50%：失去 10 生命',fn:()=>{if(Math.random()<.5)return '政策利好兑现，升级了：'+upgradeRandom(3);run.hp-=10;return '结果不如预期，失去 10 生命。'}},
+   {t:'📉 看空：对冲不确定性',d:'花 30 金币，获得一瓶随机药水并回复 15 生命',ok:()=>run.gold>=30,fn:()=>{run.gold-=30;run.hp=Math.min(run.maxHp,run.hp+15);const p=pick(Object.keys(POTIONS));return addPotion(p)?'买了保险：获得「'+POTIONS[p].n+'」，回复 15 生命。':'回复 15 生命（药水栏已满）。'}}]},
+];
+
+// ===== 角色 =====
+const CHARS={
+ war:{n:'数据中心建设者',sp:'👷',hp:80,relic:'ember',deck:['w_strike','w_strike','w_strike','w_strike','w_strike','w_defend','w_defend','w_defend','w_defend','w_bash'],
+  d:'电力 · 云 · 新云。靠力量、易伤硬推；电力牌额外发能量，云牌积压订单随时间叠加，新云牌用生命或金币换爆发。起始遗物「现场运维包」：战斗后回复 6 点生命。'},
+ ai:{n:'算力架构师',sp:'🧑‍💻',hp:64,relic:'coldloop',deck:['a_strike','a_strike','a_strike','a_strike','a_hbm3','a_hbm3','a_hbm3','a_hbm3','a_nvlhs','a_runaway'],
+  d:'芯片 · 存储。GPU 牌伤害 = 真实 FP4 PFLOPS；HBM 牌叠「HBM 层」（回合结束按层数给格挡，可被读出成伤害）。起始遗物「液冷回路」。'},
+ orb:{n:'轨道与光网工程师',sp:'🧑‍🚀',hp:77,relic:'groundst',deck:['o_strike','o_strike','o_strike','o_strike','o_defend','o_defend','o_defend','o_defend','o_800g','o_electron'],
+  d:'光通信 · 火箭。光模块牌按通道数多段攻击（力量每段生效）；火箭牌先「发射」，数回合后才结算伤害。起始遗物「地面站」。'},
+};
+const SAVE_KEY='aispire_save_v1';
+const $=s=>document.querySelector(s);
+const app=()=>document.getElementById('app');
+let run=null, cs=null, SPEED=1;
+const sleep=ms=>new Promise(r=>setTimeout(r,ms*SPEED));
+const pick=a=>a[Math.floor(Math.random()*a.length)];
+const shuffle=a=>{for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]]}return a};
+let UID=1;const uid=()=>UID++ + '_' + Math.floor(Math.random()*1e6);
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+
+// ===== 卡牌工具 =====
+const vals=c=>Object.assign({},CARDS[c.id].v,c.up?CARDS[c.id].u:{});
+const cname=c=>{const d=CARDS[c.id];return c.up?((d.un||d.n)+'+'):d.n};
+function ccost(c){const d=CARDS[c.id];if(c.tmp0)return 0;return (c.up&&d.uc!==undefined)?d.uc:d.cost}
+const isExh=c=>{const d=CARDS[c.id];return !!d.ex&&!(c.up&&d.uex===0)};
+const canUp=c=>!c.up&&['attack','skill','power'].includes(CARDS[c.id].t);
+const TYPE_CN={attack:'攻击',skill:'技能',power:'能力',status:'状态',curse:'诅咒'};
+const RAR_CN={starter:'基础',common:'普通',uncommon:'罕见',rare:'稀有',special:'特殊'};
+function calcPlayerDmg(base,t,opts={}){
+ let d=base;
+ if(cs){const p=cs.p;d+= (p.st.str||0)+(p.st.tstr||0);if(opts.aoe&&hasRelic('fairwater'))d+=3;if(p.st.weak)d*=0.75;if(t&&t.st.vuln)d*=1.5;if(opts.mult)d*=opts.mult}
+ return Math.max(0,Math.floor(d));
+}
+function calcBlock(base){let b=base;if(cs){b+=cs.p.st.dex||0;if(cs.p.st.frail)b*=0.75}return Math.max(0,Math.floor(b))}
+function cardDesc(c,inCombat){
+ const d=CARDS[c.id],v=vals(c);
+ let s=d.ds.replace(/\{D:(\w+)\}/g,(m,k)=>{const b=v[k];if(!inCombat||!cs)return `<b>${b}</b>`;const mult=(cs.p.st.dbl&&d.t==='attack')?2:1;const x=calcPlayerDmg(b,cs.hoverT,{aoe:d.tg==='all',mult});return `<b class="${x>b?'mod-up':x<b?'mod-dn':''}">${x}</b>`})
+ .replace(/\{B:(\w+)\}/g,(m,k)=>{const b=v[k];if(!inCombat||!cs)return `<b>${b}</b>`;const x=calcBlock(b);return `<b class="${x>b?'mod-up':x<b?'mod-dn':''}">${x}</b>`})
+ .replace(/\{EX\}/g,isExh(c)?'消耗。':'').replace(/\{(\w+)\}/g,(m,k)=>v[k]!==undefined?`<b>${v[k]}</b>`:m);
+ if(d.eth&&!s.includes('虚无'))s+=' 虚无。';
+ return s;
+}
+function cardHTML(c,opts={}){
+ const d=CARDS[c.id];const cost=ccost(c);
+ let costS=cost===-2?'':(cost===-1?'X':cost);
+ const cheap=c.tmp0||(c.up&&d.uc!==undefined&&d.uc<d.cost);
+ return `<div class="card ${d.t} ${d.r} ${c.up?'up':''} ${opts.cls||''}" data-tip="card:${c.id}:${c.up?1:0}" ${opts.attr||''}>
+  ${costS!==''?`<div class="cost ${cheap?'cheap':''}">${costS}</div>`:''}<div class="frame"></div>
+  <div class="nm">${esc(cname(c))}</div><div class="art">${d.art||'🂠'}<span class="en">${esc(enLabel('card',c.id))}</span></div>
+  <div class="tp">${TYPE_CN[d.t]}${d.src?' · 📚':''}</div><div class="ds">${cardDesc(c,opts.combat)}</div></div>`;
+}
+const hasRelic=id=>run&&run.relics.includes(id);
+function newCard(id,up){return {uid:uid(),id,up:!!up}}
+
+// ===== 存档 =====
+function save(){if(!run)return;try{localStorage.setItem(SAVE_KEY,JSON.stringify(run))}catch(e){}}
+function loadSave(){try{const s=localStorage.getItem(SAVE_KEY);return s?JSON.parse(s):null}catch(e){return null}}
+function clearSave(){try{localStorage.removeItem(SAVE_KEY)}catch(e){}}
+
+// ===== 地图 =====
+const ROWS=15,COLS=7;
+const NODE_IC={m:'⚔️',E:'😈',e:'❓',s:'🛒',r:'🔥',t:'🎁',B:'👑'};
+const NODE_CN={m:'普通战斗',E:'精英',e:'事件',s:'商店',r:'休息点',t:'宝箱',B:'Boss'};
+function genMap(){
+ const N=[];for(let r=0;r<ROWS;r++){N.push([]);for(let c=0;c<COLS;c++)N[r].push(null)}
+ const node=(r,c)=>N[r][c]||(N[r][c]={r,c,type:null,next:[],jx:(Math.random()-.5)*26,jy:(Math.random()-.5)*16});
+ let starts=[];
+ for(let p=0;p<6;p++){
+  let c=R(0,COLS-1);if(p===1){while(c===starts[0])c=R(0,COLS-1)}starts.push(c);
+  for(let r=0;r<ROWS-1;r++){
+   const a=node(r,c);let nc=Math.min(COLS-1,Math.max(0,c+R(-1,1)));
+   if(nc===c+1&&N[r][c+1]&&N[r][c+1].next.includes(c))nc=c;
+   if(nc===c-1&&N[r][c-1]&&N[r][c-1].next.includes(c))nc=c;
+   node(r+1,nc);if(!a.next.includes(nc))a.next.push(nc);c=nc;
+  }
+ }
+ const parents=(r,c)=>r===0?[]:N[r-1].filter(n=>n&&n.next.includes(c));
+ for(let r=0;r<ROWS;r++)for(let c=0;c<COLS;c++){const n=N[r][c];if(!n)continue;
+  if(r===0){n.type='m';continue}if(r===8){n.type='t';continue}if(r===ROWS-1){n.type='r';continue}
+  let t,tries=0;
+  do{const x=Math.random()*100;t=x<45?'m':x<66?'e':x<73?'s':x<85?'r':'E';
+   if(r<5&&(t==='E'||t==='r'))t='m';if(r===ROWS-2&&t==='r')t='m';
+   const ps=parents(r,c);if((t==='E'||t==='r'||t==='s')&&ps.some(p=>p.type===t))t=null;tries++}while(!t&&tries<10);
+  n.type=t||'m';}
+ // 保证每幕至少 2 个商店
+ let shops=N.flat().filter(n=>n&&n.type==='s').length,g=0;
+ while(shops<2&&g++<50){const r=R(3,12);const c=pick(N[r].filter(n=>n&&n.type==='m')||[]);if(c&&r!==8){c.type='s';shops++}}
+ return N;
+}
+function availNodes(){
+ const M=run.map;if(!run.pos)return M[0].filter(Boolean).map(n=>({r:0,c:n.c}));
+ if(run.pos.r===ROWS-1)return [{r:ROWS,c:3}];
+ if(run.pos.r===ROWS)return [];
+ return M[run.pos.r][run.pos.c].next.map(c=>({r:run.pos.r+1,c}));
+}
+
+// ===== 新游戏 =====
+function newRun(ch){
+ const C=CHARS[ch];
+ run={v:1,char:ch,hp:C.hp,maxHp:C.hp,gold:99,deck:C.deck.map(id=>newCard(id)),relics:[C.relic],potions:[null,null,null],act:1,map:genMap(),pos:null,visited:[],
+  seenEvents:[],removeCost:75,stats:{kills:0,elites:0,bosses:0,floors:0,gold:0,cards:0,dmg:0,start:Date.now()},log:[]};
+ run.potions[0]='heal';
+ save();showMap();
+}
+// ===== 顶栏 =====
+function topbar(){
+ const C=CHARS[run.char];
+ const pots=run.potions.map((p,i)=>p?`<div class="potion has" data-tip="potion:${p}" onclick="clickPotion(${i})">${POTIONS[p].i}</div>`:`<div class="potion"></div>`).join('');
+ const rel=run.relics.map(r=>`<div class="relic" id="rel-${r}" data-tip="relic:${r}">${RELICS[r].i}</div>`).join('');
+ const hp=cs?cs.p.hp:run.hp;
+ return `<div class="topbar"><div class="it nm">${C.sp} <b>${C.n}</b></div><div class="it hp">❤️ ${hp}/${run.maxHp}</div><div class="it gd">🪙 ${run.gold}</div>
+ <div class="potions">${pots}</div><div class="relics">${rel}</div>
+ <div class="it fl"><span class="lg">第 ${run.act} 幕 · </span><span class="sh">${run.act}·</span>${run.pos?Math.min(run.pos.r+1,16):0}/16<span class="lg"> 层</span></div>
+ <button class="btn small" onclick="showDeck()" title="牌组">🂠 ${run.deck.length}</button>
+ <button class="btn small" onclick="showVocab()" title="词汇本">📒</button>
+ <button class="btn small kwbtn" onclick="showKeywords()" title="关键词">❔</button>
+ <button class="btn small" onclick="showSources()" title="资料来源">📚</button>
+ <button class="btn small" onclick="showMenu()" title="菜单">☰</button></div>`;
+}
+function refreshTop(){const t=document.querySelector('.topbar');if(t&&run)t.outerHTML=topbar()}
+
+// ===== 标题 =====
+function showTitle(){
+ cs=null;const s=loadSave();
+ app().innerHTML=`<div class="screen full"><div class="center">
+ <div style="font-size:70px">🗼</div><div class="title">算力尖塔</div>
+ <div class="sub">一款原创卡牌构筑 Roguelike。攀登三幕尖塔，对抗 AI 产业的真实风险与瓶颈：<b>内存墙</b>、<b>电网瓶颈</b>、<b>十年期利率</b>在塔顶等你。<br>所有科技卡牌、遗物和事件的数字都来自真实公开资料，详见「资料来源」。</div>
+ <div style="display:flex;gap:12px;flex-wrap:wrap;justify-content:center">
+ ${s?`<button class="btn" id="btn-continue" onclick="continueRun()">▶ 继续旅程（${CHARS[s.char].n} · 第 ${s.act} 幕）</button>`:''}
+ <button class="btn" id="btn-new" onclick="showCharSelect()">⚔ 新的旅程</button></div>
+ <div style="display:flex;gap:10px;flex-wrap:wrap;justify-content:center">
+ <button class="btn small blue" onclick="showHelp()">玩法说明</button><button class="btn small blue" onclick="showKeywords()">关键词</button><button class="btn small blue" id="btn-vocab" onclick="showVocab()">📒 词汇本</button><button class="btn small blue" onclick="showSources()">📚 资料来源</button></div>
+ <div class="sub" style="font-size:12px">本游戏为原创作品，玩法受卡牌构筑类游戏启发；不含任何第三方游戏的名称或美术素材。</div>
+ </div></div>`;
+}
+function continueRun(){run=loadSave();if(!run)return showTitle();showMap()}
+function showCharSelect(){
+ if(loadSave()&&!confirm('开始新旅程会覆盖当前存档，确定吗？'))return;
+ app().innerHTML=`<div class="screen full"><div class="center"><h2>选择你的角色</h2><div class="chars">
+ ${Object.entries(CHARS).map(([k,c])=>`<div class="panel charcard" id="char-${k}" onclick="newRun('${k}')"><div class="portrait">${c.sp}</div><h3>${c.n}</h3>
+ <p>❤️ 生命 ${c.hp} · 起始遗物：${RELICS[c.relic].i} ${RELICS[c.relic].n}</p><p style="margin-top:8px">${c.d}</p>
+ <p style="margin-top:8px;color:#9a8f80">卡池：${Object.values(CARDS).filter(x=>x.c===k).length} 张</p></div>`).join('')}
+ </div><button class="btn small" onclick="showTitle()">返回</button></div></div>`;
+}
+function showHelp(){
+ modal(`<h2>玩法说明</h2><div class="panel factbox" style="max-width:720px;font-size:14px">
+ <p>1. <b>地图</b>：从底部出发，每次选择一个相连的节点向上攀登。每幕 15 层，最后挑战 Boss。共 3 幕。</p>
+ <p>2. <b>战斗</b>：每回合 3 点能量、抽 5 张牌。点击卡牌打出；需要目标的攻击牌在多个敌人时再点击敌人（也可按数字键选牌、E 结束回合、Esc 取消）。敌人头顶的图标是它下回合的<b>意图</b>（⚔️攻击 🛡️防御 ⬆️强化 💀减益）。</p>
+ <p>3. <b>格挡</b>每回合开始清零；抽牌堆用完会把弃牌堆洗回。</p>
+ <p>4. <b>奖励</b>：战斗后获得金币、药水，并从 3 张牌中选 1 张（可跳过）。精英额外掉落遗物。</p>
+ <p>5. <b>休息点</b>回复 30% 生命或升级一张牌（+ 版本）。<b>商店</b>可买卡、遗物、药水，或付费移除一张牌。</p>
+ <p>6. 三名角色：<b>算力架构师</b>（芯片+存储，HBM 层）、<b>数据中心建设者</b>（电力+云+新云，额外能量/积压订单/以血换伤）、<b>轨道与光网工程师</b>（光通信多段攻击+火箭延迟发射）。卡名都是真实产品，数值按真实规格换算，悬停卡牌可看规格、换算公式与出处。</p>
+ <p>7. 进度在地图界面自动保存到本地浏览器。</p></div><button class="btn" onclick="closeModal()">知道了</button>`);
+}
+function showKeywords(){
+ modal(`<h2>关键词</h2><div class="panel kw">${Object.entries(KW).map(([k,v])=>`<div class="k">${k}</div><div>${v}</div>`).join('')}
+ ${Object.values(STAT).filter(s=>!KW[s.n]).map(s=>`<div class="k">${s.i} ${s.n}</div><div>${s.d}</div>`).join('')}</div><button class="btn" onclick="closeModal()">关闭</button>`);
+}
+function showSources(){
+ modal(`<h2>📚 资料来源</h2><div class="panel srclist"><p>游戏中所有科技数字均来自下列公开资料（2026 年 10 月核实）。标注「报道」的为媒体报道、厂商未证实；标注「目标/预计」的为厂商规划，可能变化。</p>
+ <p style="margin-top:6px"><b>换算规则</b>（所有卡牌悬停时也会写明）：</p><ul style="margin:4px 0 0 18px;font-size:13px;line-height:1.7">
+<li><b>芯片</b>：GPU 攻击伤害 = 每 GPU FP4 PFLOPS（B200 10、B300 15、Rubin 训练 35、Rubin CPX 30、MI455X 40）；NVLink 伤害 = 3.33 × 每 GPU TB/s（1.8 → 6，3.0 → 10）；Ironwood 伤害 = 单舱芯片数 ÷ 1,000（9,216 → 9）；NVFP4 = 伤害 ×2（FP4 吞吐为 FP8 的 2 倍）。</li>
+<li><b>存储</b>：每 GPU HBM 格挡 = GB ÷ 16（80 → 5，288 → 18，1 TB → 64）；单栈格挡 = 单栈 GB ÷ 6（36 → 6，48 → 8）；HBM 层数 = 堆叠层数（12-Hi → 12，16-Hi → 16）；抽牌 = 单栈 TB/s 向下取整（2.8 → 2，3.3 → 3）；HBF 格挡 = 512 GB ÷ 16 = 32。MI455X 需 12 层才满伤，对应 12 个 HBM4 堆栈。</li>
+<li><b>光通信</b>：段数 = 通道数，每段伤害 = 单通道速率 ÷ 100G（800G = 8×100G → 1×8；1.6T = 8×200G → 2×8）；1.6T 费用：全重定时 22 W → 2，TRO 16 W → 1。</li>
+<li><b>火箭</b>：发射伤害 = LEO 运力 kg ÷ 25（Electron 300 → 12）；Neutron 按公式应为 520，为平衡封顶 45，并有 30% 推迟概率（首飞已推迟到 2027）；Starcloud 轨道伤害 = 卫星 60 kg ÷ 20 = 3。</li>
+<li><b>电力</b>：燃气轮机格挡 = MW × 2（2.5 → 5）；Megapack 格挡 ×2（150 + 150 MW）；Abilene 伤害 = GW × 30（1.2 → 36）；Hyperion 力量 ×2.5（2 → 5 GW）；Bloom 遗物概率 = 电效率 54%。</li>
+<li><b>云 / 新云</b>：积压订单每回合确认一半（Google Cloud 约 50% 积压在 24 个月内确认）；CoreWeave 杠杆：失去生命 = 伤害 × 25%（利息支出 ÷ 收入 ≈ 6.40 ÷ 25.75）；CoreWeave 积压牌 = 1,040 亿 ÷ 52 = 20；OpenAI–AMD 6 GW 积压 = GW × 2 = 12（首批 1 GW 目标 2H 2026）。</li>
+<li><b>v3 新卡</b>：Rubin Ultra NVL576（预计 2H 2027）AoE 伤害 = 机柜 FP4 推理 15 EF，HBM 层 +4 = 每封装 4 颗 GPU die；AMD Helios（72×MI455X）AoE 伤害 = 机柜 FP8 EFLOPS × 10（1.4 → 14）、格挡 = 机柜 HBM4 TB（31）；Vera CPU 抽牌 = 176 线程 ÷ 88 核 = 2。</li>
+<li><b>供应链联动</b>（教育用途，非投资建议）：${Object.values(COMBOS).map(C=>C.ic+' '+C.n+'：'+C.short).join('；')}。联动系数（+15%、+25%、20+12×电力）为游戏设定，因果链与公司见战斗顶部标签。</li>
+<li><b>市场事件</b>：每个事件都附「传导机制」和看多 / 看空选项，事实部分引用下表来源；收益与生命值数字为游戏设定。</li>
+<li><b>难度</b>：第 2/3 幕敌人生命 ×0.64–0.78、伤害 ×0.75–0.85（按角色，游戏设定），用于把通关率调到约 25–35%。</li></ul>
+<p style="margin-top:6px;color:#9a8f80;font-size:12px">无法核实的参数一律不用：例如 HASTE、LPO 等牌只用了公开的定性特征，数值标为游戏设定。没有来源的牌（基础牌和 2N 供电、UPS、OCS、推测解码等概念牌）在提示框中注明“概念牌：数值为游戏设定”。</p><ol style="margin-top:10px">
+ ${Object.entries(SRC).map(([k,s])=>`<li><a href="${s.u}" target="_blank" rel="noopener">${esc(s.t)}</a><br><span style="color:#777;font-size:12px">${esc(s.u)}</span><br><span style="color:#9a8f80;font-size:12px">用于：${usedBy(k)}</span></li>`).join('')}</ol></div><button class="btn" onclick="closeModal()">关闭</button>`);
+}
+function usedBy(k){const a=[];for(const c of Object.values(CARDS))if(c.src&&c.src.includes(k))a.push(c.n);for(const r of Object.values(RELICS))if(r.src&&r.src.includes(k))a.push('遗物·'+r.n);for(const e of EVENTS)if(e.src&&e.src.includes(k))a.push('事件·'+e.n);for(const c of Object.values(COMBOS))if(c.src.includes(k))a.push('联动·'+c.n);return a.join('、')||'—'}
+function showMenu(){
+ modal(`<h2>菜单</h2><div class="opts" style="width:320px">
+ <button class="opt" onclick="closeModal();showKeywords()">❔ 关键词</button>
+ <button class="opt" onclick="closeModal();showVocab()">📒 词汇本</button>
+ <button class="opt" onclick="closeModal();showTitle()">返回标题（进度已保存在地图处）</button>
+ <button class="opt" onclick="if(confirm('放弃本次旅程？'))abandon()"><span class="r">放弃本次旅程</span></button>
+ <button class="opt" onclick="SPEED=SPEED===1?0.35:1;closeModal()">切换动画速度（当前 ${SPEED===1?'正常':'快速'}）</button>
+ <button class="opt" onclick="closeModal()">继续</button></div>`);
+}
+function abandon(){closeModal();endRun(false,'放弃了旅程')}
+
+// ===== 弹窗 =====
+function modal(html){closeModal();const m=document.createElement('div');m.className='modal';m.id='modal';m.innerHTML=html;document.body.appendChild(m)}
+function closeModal(){const m=document.getElementById('modal');if(m)m.remove();hideTip()}
+function showDeck(pile){
+ let list,title;
+ if(pile&&cs){list=cs[pile];title={draw:'抽牌堆（顺序已打乱）',discard:'弃牌堆',exhaust:'消耗堆'}[pile];if(pile==='draw')list=[...list].sort((a,b)=>CARDS[a.id].t.localeCompare(CARDS[b.id].t))}
+ else{list=run.deck;title='你的牌组'}
+ modal(`<h2>${title}（${list.length}）</h2><div class="cardgrid">${list.map(c=>cardHTML(c)).join('')||'<div class="sub">空</div>'}</div><button class="btn" onclick="closeModal()">关闭</button>`);
+}
+function pickCard(list,title,cb,cancel=true,preview){
+ modal(`<h2>${title}</h2><div class="cardgrid">${list.map((c,i)=>cardHTML(preview?preview(c):c,{attr:`onclick="__pick(${i})" data-pick="${i}"`})).join('')||'<div class="sub">没有可选的牌</div>'}</div>${cancel||!list.length?'<button class="btn" onclick="closeModal();__pickCancel&&__pickCancel()">取消</button>':''}`);
+ window.__pick=i=>{closeModal();cb(list[i])};window.__pickCancel=null;
+}
+
+// ===== 提示框 =====
+let tipEl=null;
+function tipContent(key){
+ const [k,a,b]=key.split(':');
+ if(k==='card'){const d=CARDS[a];const c={id:a,up:b==='1'};let h=`<div class="k">${esc(cname(c))}</div><div>${RAR_CN[d.r]} · ${TYPE_CN[d.t]}</div>`;
+  const txt=d.ds+(d.ex?'消耗':'')+(d.eth?'虚无':'');const kws=Object.keys(KW).filter(w=>txt.includes(w)||(d.t==='power'&&w==='能力'));
+  for(const w of kws)h+=`<div><span class="k">${w}</span>：${KW[w]}</div>`;
+  if(d.fl)h+=`<div class="fl">${esc(d.fl)}</div>`;if(d.src)h+=`<div class="src">来源：${d.src.map(s=>esc(SRC[s].t)).join('；')}</div>`;else if(['ai','war','orb'].includes(d.c))h+=`<div class="src">概念牌：以通用技术/行业概念命名，无可换算的公开产品参数，数值为游戏设定。</div>`;
+  h+=termsHTML('card',a)+cardComboLines(a);
+  if(!c.up&&canUp(c)){h+=`<div class="src" style="color:#7d7">升级后：${cardDesc({id:a,up:true},false).replace(/<[^>]+>/g,'')}${d.uc!==undefined?'（费用 '+d.uc+'）':''}</div>`}return h}
+ if(k==='relic'){const r=RELICS[a];return `<div class="k">${r.i} ${r.n}</div><div>${r.d}</div>${r.fl?`<div class="fl">${esc(r.fl)}</div>`:''}${r.src?`<div class="src">来源：${r.src.map(s=>esc(SRC[s].t)).join('；')}</div>`:''}${termsHTML('relic',a)}`}
+ if(k==='potion'){const p=POTIONS[a];return `<div class="k">${p.i} ${p.n}</div><div>${p.d}</div><div class="src">点击使用（战斗中）或丢弃。</div>${termsHTML('potion',a)}`}
+ if(k==='st'){const s=STAT[a];return `<div class="k">${s.i} ${s.n} ${b}</div><div>${s.d}</div>`}
+ if(k==='intent'){return decodeURIComponent(a)}
+ if(k==='launch'){const l=cs&&cs.launches[+a];if(!l)return '';return `<div class="k">${l.ic||'🚀'} ${esc(l.n)}：T-${Math.max(0,l.t)}</div><div>${l.fx==='xen'?'到点后每回合额外 +'+l.d+' 能量':l.fx==='orbit'?'入轨后每回合对随机敌人造成 '+l.d+' 点伤害':(l.all?'对所有敌人':'对随机敌人')+'造成 '+l.d+' 点伤害（受易伤影响）'}</div>${l.dc?`<div class="fl">每回合 ${l.dc*100}% 概率推迟（剩余 ${l.dl} 次）——Neutron 首飞已推迟到 2027 年。</div>`:''}`}
+ if(k==='combo')return comboTip(a);
+ if(k==='enemy'){const D=ENEMIES[a];return `<div class="k">${D.sp} ${esc(D.n)}</div>${D.fl?`<div class="fl">${esc(D.fl)}</div>`:''}${termsHTML('enemy',a)}`}
+ if(k==='node'){return `<div class="k">${NODE_IC[a]} ${NODE_CN[a]}</div>`}
+ return '';
+}
+function showTip(el,e){const key=el.dataset.tip;const h=tipContent(key);if(!h)return hideTip();if(!tipEl){tipEl=document.createElement('div');tipEl.className='tip';document.body.appendChild(tipEl)}tipEl.innerHTML=h;tipEl.style.display='block';
+ const r=el.getBoundingClientRect();let x=r.right+8,y=r.top;const w=tipEl.offsetWidth,hh=tipEl.offsetHeight;if(x+w>innerWidth)x=r.left-w-8;if(x<4)x=4;if(y+hh>innerHeight)y=innerHeight-hh-4;if(y<4)y=4;tipEl.style.left=x+'px';tipEl.style.top=y+'px'}
+function hideTip(){if(tipEl)tipEl.style.display='none'}
+document.addEventListener('mouseover',e=>{const el=e.target.closest&&e.target.closest('[data-tip]');if(el)showTip(el,e);else hideTip()});
+
+// ===== 地图界面 =====
+function showMap(){
+ cs=null;run.screen='map';save();
+ const M=run.map,W=Math.min(760,innerWidth),H=ROWS*72+160;
+ const pos=(r,c)=>{if(r===ROWS)return {x:W/2,y:60};const n=M[r][c];return {x:(c+.5)/COLS*W+n.jx,y:(ROWS-r)*72+70+n.jy}};
+ const av=availNodes();const isAv=(r,c)=>av.some(a=>a.r===r&&a.c===c);
+ let lines='',nodes='';
+ for(let r=0;r<ROWS;r++)for(let c=0;c<COLS;c++){const n=M[r][c];if(!n)continue;const p=pos(r,c);
+  const targets=r===ROWS-1?[{r:ROWS,c:3}]:n.next.map(x=>({r:r+1,c:x}));
+  for(const t of targets){const q=pos(t.r,t.c);const vis=run.visited.some(v=>v.r===r&&v.c===c)&&(run.visited.some(v=>v.r===t.r&&v.c===t.c));
+   lines+=`<line x1="${p.x}" y1="${p.y}" x2="${q.x}" y2="${q.y}" stroke="${vis?'#5cb85c':'#5a4a6a'}" stroke-width="${vis?4:2}" stroke-dasharray="${vis?'':'6 6'}"/>`}
+  const visited=run.visited.some(v=>v.r===r&&v.c===c),cur=run.pos&&run.pos.r===r&&run.pos.c===c;
+  nodes+=`<div class="mapnode ${isAv(r,c)?'avail':''} ${visited?'visited':''} ${cur?'cur':''} ${!isAv(r,c)&&!visited?'locked':''}" style="left:${p.x}px;top:${p.y}px" data-tip="node:${n.type}" ${isAv(r,c)?`onclick="enterNode(${r},${c})"`:''} data-r="${r}" data-c="${c}">${NODE_IC[n.type]}</div>`}
+ const bp=pos(ROWS,3);const bossName=ENEMIES[ENCOUNTERS[run.act].boss[0]];
+ nodes+=`<div class="mapnode ${isAv(ROWS,3)?'avail':'locked'}" style="left:${bp.x}px;top:${bp.y}px;width:80px;height:80px;margin:-40px 0 0 -40px;font-size:44px" ${isAv(ROWS,3)?`onclick="enterNode(${ROWS},3)"`:''} data-r="${ROWS}" data-c="3" title="${bossName.n}">${bossName.sp}</div>`;
+ app().innerHTML=topbar()+`<div class="screen" id="mapscreen"><div class="maphead"><h2>第 ${run.act} 幕 · ${['','数据中心地基','电网与供应链','宏观风暴'][run.act]}</h2><div class="sub">Boss：${bossName.sp} ${bossName.n}　·　点击发光的节点前进</div></div>
+ <div class="mapwrap" style="height:${H}px"><svg width="${W}" height="${H}" style="position:absolute;left:0;top:0">${lines}</svg>${nodes}</div></div>
+ <div class="maplegend">${Object.entries(NODE_CN).map(([k,v])=>`${NODE_IC[k]} ${v}`).join('<br>')}</div>`;
+ const ms=document.getElementById('mapscreen');
+ const target=av[0]?pos(av[0].r,av[0].c).y:H;ms.scrollTop=Math.max(0,target-ms.clientHeight/2);
+}
+function enterNode(r,c){
+ run.pos={r,c};run.visited.push({r,c});run.stats.floors++;
+ const type=r===ROWS?'B':run.map[r][c].type;
+ if(type==='m'){const pool=ENCOUNTERS[run.act];const n=run.visited.length;startCombat(pick(n<=3?pool.easy:pool.hard),'m')}
+ else if(type==='E')startCombat(pick(ENCOUNTERS[run.act].elite),'E');
+ else if(type==='B')startCombat(ENCOUNTERS[run.act].boss,'B');
+ else if(type==='r')showRest();else if(type==='s')showShop();else if(type==='t')showTreasure();else if(type==='e')showEvent();
+}
+
+// ===== 战斗 =====
+function nativeAct(id){for(const a of [1,2,3]){const P=ENCOUNTERS[a];for(const k of ['easy','hard','elite','boss'])for(const g of P[k])if((Array.isArray(g)?g:[g]).includes(id))return a}return 1}
+// 难度系数（游戏设定）：第 2/3 幕敌人生命与伤害下调，用于平衡
+const ACT_SC={war:{hp:{2:.74,3:.68},dm:{2:.83,3:.79}},ai:{hp:{2:.78,3:.72},dm:{2:.85,3:.81}},orb:{hp:{2:.7,3:.64},dm:{2:.79,3:.75}}};
+function actHp(){const c=ACT_SC[run.char];return (c&&c.hp[run.act])||1}function actDm(){const c=ACT_SC[run.char];return (c&&c.dm[run.act])||1}
+function makeEnemy(id){
+ const D=ENEMIES[id];const diff=Math.max(0,run.act-nativeAct(id));
+ const hp=Math.round(R(D.hp[0],D.hp[1])*(1+0.3*diff)*actHp());
+ const e={uid:uid(),id,n:D.n,hp,maxHp:hp,block:0,st:{},t:0,intent:null,dead:false};
+ if(diff)e.st.str=diff*2;if(D.init)D.init(e);return e;
+}
+function startCombat(ids,kind){
+ const enemies=ids.map(makeEnemy);
+ cs={kind,enemies,p:{hp:run.hp,maxHp:run.maxHp,block:0,st:{},uid:'player'},draw:shuffle(run.deck.map(c=>({...c,uid:uid()}))),hand:[],discard:[],exhaust:[],energy:0,turn:0,
+  sel:null,selPot:null,anim:{},over:false,busy:false,firstAttackDone:false,attackCount:0,hpLostCards:0,carry:0,launches:[]};
+ cs.g=makeG();cs.cb=cbInit();
+ markSeen([...new Set(ids.flatMap(id=>termsFor('enemy',id)))]);
+ for(const e of enemies)e.intent=ENEMIES[e.id].ai(e,e.t++,cs.g);
+ // 开场遗物
+ const g=cs.g;
+ if(hasRelic('prometheus'))g.self('str',1);
+ if(hasRelic('hyperion'))g.rawBlk(10);
+ if(hasRelic('cowos'))g.self('dex',1);
+ if(hasRelic('reticle'))g.self('art',1);
+ if(hasRelic('microchan'))g.self('metal',3);
+ if(hasRelic('ironwood'))g.apAll('vuln',1);
+ if(hasRelic('turbine'))for(const e of alive())g.dmgRaw(e,3);
+ if(hasRelic('groundst'))g.launch({n:'Electron',t:2,d:12,ic:'🚀'});
+ renderCombat();
+ banner(kind==='B'?'Boss 战！':kind==='E'?'精英战斗':'战斗开始');
+ setTimeout(()=>startPlayerTurn(),300*SPEED);
+}
+const alive=()=>cs.enemies.filter(e=>!e.dead);
+function banner(t){const b=document.createElement('div');b.className='turnbanner';b.textContent=t;document.body.appendChild(b);setTimeout(()=>b.remove(),1000)}
+function float(ent,txt,cls){
+ const el=document.getElementById('ent-'+ent.uid);if(!el)return;const r=el.querySelector('.sprite').getBoundingClientRect();
+ const f=document.createElement('div');f.className='floater '+cls;f.textContent=txt;f.style.left=(r.left+r.width/2-20+(Math.random()-.5)*40)+'px';f.style.top=(r.top+r.height/3+(Math.random()-.5)*20)+'px';document.body.appendChild(f);setTimeout(()=>f.remove(),1000);
+}
+function makeG(){
+ const g={
+  get p(){return cs.p},get run(){return run},get hand(){return cs.hand},get turnSkills(){return cs.turnSkills||0},
+  float:(e,t,c)=>float(e,t,c),toast:t=>banner(t),
+  atk(t,n,times=1,opts={}){let tot=0;n=comboAtk(n);if(opts.lane)n+=(cs.p.st.cpo||0);for(let i=0;i<times;i++){if(!t||t.dead)break;const d=calcPlayerDmg(n,t,{aoe:opts.aoe,mult:cs.mult});tot+=dealDmg(t,d,{pierce:opts.pierce,attacker:cs.p})}return tot},
+  atkAll(n,times=1,o={}){let tot=0;for(let i=0;i<times;i++)for(const e of alive())tot+=g.atk(e,n,1,{aoe:1,lane:o.lane});return tot},
+  atkRandom(n,times){for(let i=0;i<times;i++){const a=alive();if(!a.length)break;g.atk(pick(a),n)}},
+  dmgRaw(t,n){return dealDmg(t,n,{})},
+  blk(n){g.rawBlk(calcBlock(n))},
+  rawBlk(n){if(n<=0)return;cs.p.block+=n;float(cs.p,'+'+n+'🛡️','blkf')},
+  ap(t,k,n){if(!t||t.dead)return;if(STAT[k].bad&&t.st.art){t.st.art--;if(!t.st.art)delete t.st.art;float(t,'抵消','st');return}t.st[k]=(t.st[k]||0)+n;float(t,STAT[k].i+STAT[k].n,'st')},
+  apAll(k,n){for(const e of alive())g.ap(e,k,n)},
+  self(k,n){cs.p.st[k]=(cs.p.st[k]||0)+n;if(cs.p.st[k]===0)delete cs.p.st[k];float(cs.p,STAT[k].i+STAT[k].n+(n>0?' +'+n:''),'st')},
+  selfDebuff(k,n){g.debuffP(k,n)},
+  debuffP(k,n){const p=cs.p;if(STAT[k].bad&&p.st.art){p.st.art--;if(!p.st.art)delete p.st.art;float(p,'抵消','st');return}p.st[k]=(p.st[k]||0)+n;if(cs.busy)(cs.fresh=cs.fresh||{})[k]=1;float(p,STAT[k].i+STAT[k].n,'st')},
+  eSelf(e,k,n){e.st[k]=(e.st[k]||0)+n;float(e,STAT[k].i+STAT[k].n+' +'+n,'st')},
+  eHeal(e,n){e.hp=Math.min(e.maxHp,e.hp+n);float(e,'+'+n,'heal')},
+  draw(n){drawCards(n)},
+  en(n){cs.energy+=n;float(cs.p,'+'+n+'⚡','st')},
+  heal(n){if(n<=0)return;cs.p.hp=Math.min(run.maxHp,cs.p.hp+n);float(cs.p,'+'+n,'heal')},
+  lose(n){cs.p.hp-=n;float(cs.p,'-'+n,'dmg');cs.anim.player='hit';if(cs.p.st.rupture)g.self('str',cs.p.st.rupture);checkDeath()},
+  addDiscard(id,up){cs.discard.push(newCard(id,up))},
+  addPCard(id,pile,n=1){for(let i=0;i<n;i++){const c=newCard(id);if(pile==='draw')cs.draw.splice(R(0,cs.draw.length),0,c);else cs.discard.push(c)}float(cs.p,'+'+n+' '+CARDS[id].n,'st')},
+  exhaustHand(f){const keep=[],ex=[];for(const c of cs.hand)(f(c)?ex:keep).push(c);cs.hand=keep;for(const c of ex)exhaustCard(c);return ex.length},
+  exhaustRandomHand(){if(!cs.hand.length)return;const i=R(0,cs.hand.length-1);const c=cs.hand.splice(i,1)[0];exhaustCard(c)},
+  recover(n){const atks=cs.discard.filter(c=>CARDS[c.id].t==='attack');shuffle(atks);for(const c of atks.slice(0,n)){cs.discard.splice(cs.discard.indexOf(c),1);c.tmp0=1;if(cs.hand.length<10)cs.hand.push(c)}},
+  steal(e){const s=Math.min(run.gold,e.st.steal||15);run.gold-=s;e.stolen=(e.stolen||0)+s;if(s)float(cs.p,'-'+s+'🪙','dmg')},
+  flee(e){e.dead=true;e.fled=true;float(e,'逃跑了！','st')},
+  layer(n){const L=Math.max(0,Math.min(16,(cs.p.st.hbm||0)+n));if(L)cs.p.st.hbm=L;else delete cs.p.st.hbm;float(cs.p,'🧱HBM '+L+' 层','st')},
+  layerTo(n){if((cs.p.st.hbm||0)<n){cs.p.st.hbm=Math.min(16,n);float(cs.p,'🧱HBM '+cs.p.st.hbm+' 层','st')}},
+  launch(o){cs.launches.push(Object.assign({uid:uid()},o));float(cs.p,(o.ic||'🚀')+o.n+' T-'+o.t,'st')},
+  advance(){for(const l of cs.launches)l.t--;fireLaunches(true)},
+  boostLaunch(m){for(const l of cs.launches)if(!l.fx)l.d+=m;float(cs.p,'🚀+'+m,'st')},
+  spend(n){if(run.gold<n)return false;run.gold-=n;float(cs.p,'-'+n+'🪙','dmg');return true},
+ };
+ return g;
+}
+function exhaustCard(c){cs.exhaust.push(c);if(cs.p.st.fnp)cs.g.rawBlk(cs.p.st.fnp)}
+function dealDmg(t,d,opts){
+ if(!t||t.dead)return 0;
+ if(t===cs.p&&hasRelic('vdc800')&&!cs.vdcUsed&&opts.attacker&&d>0){d=Math.max(0,d-4);cs.vdcUsed=1}
+ let left=d;if(!opts.pierce&&t.block>0){const b=Math.min(t.block,left);t.block-=b;left-=b}
+ t.hp-=left;cs.anim[t.uid]='hit';
+ float(t,left>0?'-'+left:(d>0?'格挡':'0'),left>0?'dmg':'blkf');
+ if(t!==cs.p)run.stats.dmg+=left;
+ if(t===cs.p&&opts.attacker&&opts.attacker!==cs.p&&cs.p.st.thorns&&!opts.attacker.dead){dealDmg(opts.attacker,cs.p.st.thorns,{})}
+ if(t!==cs.p&&t.hp<=0)killEnemy(t);
+ if(t===cs.p)checkDeath();
+ return left;
+}
+function killEnemy(e){e.hp=0;e.dead=true;run.stats.kills++;if(e.stolen){run.gold+=e.stolen;float(cs.p,'+'+e.stolen+'🪙','heal')}
+ if(ENEMIES[e.id].boss&&alive().length)for(const o of alive()){o.dead=true}}
+function checkDeath(){if(cs.p.hp<=0&&!cs.over){cs.over=true;setTimeout(()=>{run.hp=0;endRun(false,'倒在了 '+(alive()[0]?alive()[0].n:'战斗')+' 面前')},700*SPEED)}}
+function drawCards(n){
+ for(let i=0;i<n;i++){
+  if(cs.hand.length>=10)break;
+  if(!cs.draw.length){if(!cs.discard.length)break;cs.draw=shuffle(cs.discard);cs.discard=[];if(hasRelic('lanes'))cs.g.rawBlk(8)}
+  cs.hand.push(cs.draw.pop());
+ }
+}
+function startPlayerTurn(){
+ if(!cs||cs.over)return;
+ cs.turn++;const p=cs.p,g=cs.g;cs.turnCards=0;cs.turnSkills=0;cs.vdcUsed=0;comboTurn();
+ if(!p.st.barricade)p.block=0;
+ if(p.st.nextblk){g.rawBlk(p.st.nextblk);delete p.st.nextblk}
+ if(p.st.poison){const n=p.st.poison;p.hp-=n;float(p,'-'+n+'☠️','dmg');p.st.poison--;if(!p.st.poison)delete p.st.poison;checkDeath();if(cs.over){renderCombat();return}}
+ if(p.st.demon)g.self('str',p.st.demon);
+ if(p.st.hbmup)g.layer(p.st.hbmup);
+ if(p.st.cloud)p.st.backlog=(p.st.backlog||0)+p.st.cloud;
+ if(p.st.backlog){const n=Math.ceil(p.st.backlog/2);const a=alive();if(a.length){dealDmg(pick(a),n,{});float(p,'📚确认 '+n,'st')}p.st.backlog-=n;if(!p.st.backlog)delete p.st.backlog}
+ if(p.st.orbit){const a=alive();if(a.length)dealDmg(pick(a),p.st.orbit,{})}
+ for(const l of cs.launches)l.t--;fireLaunches(false);
+ if(cs.over||!alive().length){renderCombat();return}
+ let en=3+(p.st.xen||0)+cs.carry+(p.st.nexten||0);cs.carry=0;delete p.st.nexten;
+ if(hasRelic('c2c'))en++;
+ if(hasRelic('bloomcell')&&Math.random()<0.54){en++;flashRelic('bloomcell')}
+ cs.energy=en;
+ let dn=5+(p.st.xdraw||0)+(hasRelic('spectrum')?1:0)+(cs.turn===1&&hasRelic('colossus')?2:0);
+ drawCards(dn);cs.busy=false;
+ if(p.st.roadmap){const l=cs.hand.filter(canUp);if(l.length){const c=pick(l);c.up=true;float(p,'🗓️升级 '+cname(c),'st')}}
+ if(!cs||cs.over)return;renderCombat();banner('你的回合');
+}
+function fireLaunches(manual){
+ const g=cs.g,keep=[];
+ for(const l of cs.launches){
+  if(l.t>0){keep.push(l);continue}
+  if(!manual&&l.dc&&l.dl>0&&Math.random()<l.dc){l.dl--;l.t=1;keep.push(l);banner(l.n+' 推迟发射！');continue}
+  if(l.fx==='xen'){g.self('xen',l.d);continue}
+  if(l.fx==='orbit'){g.self('orbit',l.d);continue}
+  const lm=launchMult(),hit=e=>dealDmg(e,Math.floor(l.d*lm*(e.st.vuln?1.5:1)),{});
+  if(l.all)alive().forEach(hit);else{const a=alive();if(a.length)hit(pick(a))}
+  float(cs.p,(l.ic||'🚀')+l.n+' 发射！','st');
+  if(cs.p.st.reuse){g.draw(cs.p.st.reuse);cs.energy++}
+ }
+ cs.launches=keep;checkWin();
+}
+function flashRelic(id){setTimeout(()=>{const el=document.getElementById('rel-'+id);if(el){el.classList.add('flash');setTimeout(()=>el.classList.remove('flash'),600)}},50)}
+function playable(c){const d=CARDS[c.id];if(d.cost===-2)return false;const cost=ccost(c);if(cost===-1)return true;return cost<=cs.energy}
+function clickCard(i){
+ if(cs.busy||cs.over)return;const c=cs.hand[i];if(!c)return;
+ if(!playable(c)){shakeMsg(CARDS[c.id].cost===-2?'这张牌无法打出':'能量不足');return}
+ const d=CARDS[c.id];
+ if(cs.sel===i){cs.sel=null;renderCombat();return}
+ if(d.tg==='enemy'){const a=alive();if(a.length===1)return playCard(i,a[0]);cs.sel=i;cs.selPot=null;renderCombat();return}
+ playCard(i,null);
+}
+function clickEnemy(uidv){
+ if(cs.busy||cs.over)return;const e=cs.enemies.find(x=>x.uid===uidv);if(!e||e.dead)return;
+ if(cs.selPot!==null){const i=cs.selPot;cs.selPot=null;usePotion(i,e);return}
+ if(cs.sel!==null){const i=cs.sel;cs.sel=null;playCard(i,e)}
+}
+function shakeMsg(t){const h=document.createElement('div');h.className='hint';h.style.position='fixed';h.style.top='60px';h.textContent=t;document.body.appendChild(h);setTimeout(()=>h.remove(),900)}
+function playCard(i,target){
+ const c=cs.hand[i],d=CARDS[c.id],g=cs.g;
+ let cost=ccost(c),x=0;if(cost===-1){x=cs.energy;cost=x}
+ cs.energy-=cost;cs.hand.splice(i,1);cs.sel=null;
+ cs.mult=(d.t==='attack'&&cs.p.st.dbl)?2:1;if(cs.mult===2){cs.p.st.dbl--;if(!cs.p.st.dbl)delete cs.p.st.dbl}
+ if(d.t==='attack'){cs.anim.player='plunge'}
+ const v=vals(c);
+ comboBefore(c);
+ d.play(g,v,target,c,x);
+ run.stats.cards++;cs.turnCards++;
+ if(d.t==='skill'){cs.turnSkills++;for(const e of alive())if(e.st.enrage)g.eSelf(e,'str',e.st.enrage);if(cs.p.st.skillblk)g.rawBlk(cs.p.st.skillblk)}
+ if(d.t==='attack'){
+  cs.attackCount++;
+  if(hasRelic('wafer')&&cs.attackCount%3===0){g.self('str',1);flashRelic('wafer')}
+  if(hasRelic('neutron')&&!cs.firstAttackDone){cs.firstAttackDone=true;const t2=(target&&!target.dead)?target:alive()[0];if(t2||d.tg!=='enemy'){flashRelic('neutron');d.play(g,v,t2,c,x)}}
+ }
+ comboAfter(c);
+ cs.mult=1;
+ delete c.tmp0;
+ if(d.t==='power'){if(cs.p.st.powdraw)g.draw(cs.p.st.powdraw)}
+ else if(isExh(c))exhaustCard(c);else cs.discard.push(c);
+ if(cs.p.st.cuts)for(const e of alive())g.dmgRaw(e,cs.p.st.cuts);
+ if(hasRelic('nvl72')&&cs.turnCards===7){g.draw(2);flashRelic('nvl72')}
+ renderCombat();checkWin();
+}
+function checkWin(){if(!cs.over&&alive().length===0){cs.over=true;setTimeout(()=>winCombat(),700*SPEED)}}
+async function endTurn(){
+ if(cs.busy||(!cs||cs.over))return;cs.busy=true;cs.sel=null;cs.selPot=null;const p=cs.p,g=cs.g;
+ // 手牌处理
+ for(const c of [...cs.hand]){if(c.id==='burn'){dealDmg(p,calcBurn(c),{})}}
+ if((!cs||cs.over))return renderCombat();
+ const keep=[];for(const c of cs.hand){delete c.tmp0;if(CARDS[c.id].eth)exhaustCard(c);else cs.discard.push(c)}cs.hand=keep;
+ if(p.st.metal)g.rawBlk(p.st.metal);
+ if(p.st.hbm)g.rawBlk(Math.floor(p.st.hbm/2));
+ if(hasRelic('coldloop')&&cs.energy>0)g.rawBlk(cs.energy*2);
+ if(hasRelic('megapack'))cs.carry=Math.min(1,cs.energy);
+ if(p.st.regen){g.heal(p.st.regen);p.st.regen--;if(!p.st.regen)delete p.st.regen}
+ delete p.st.tstr;
+ renderCombat();await sleep(350);
+ // 敌人回合
+ for(const e of cs.enemies){
+  if(!cs||cs.over)return;if(e.dead)continue;
+  e.block=0;
+  if(e.st.poison){const n=e.st.poison;e.hp-=n;float(e,'-'+n+'☠️','dmg');cs.anim[e.uid]='hit';e.st.poison--;if(!e.st.poison)delete e.st.poison;if(e.hp<=0){killEnemy(e);renderCombat();await sleep(300);continue}}
+  const m=ENEMIES[e.id].moves[e.intent];
+  cs.anim[e.uid]='lunge';
+  if(m.d){const times=m.x||1;for(let k=0;k<times;k++){if((!cs||cs.over)||e.dead)break;const dmg=calcEnemyDmg(e,m.d);dealDmg(p,dmg,{attacker:e});renderCombat();await sleep(times>1?180:120)}}
+  if(!cs||cs.over)return;
+  if(m.b&&!e.dead){e.block+=m.b;float(e,'+'+m.b+'🛡️','blkf')}
+  if(m.fn&&!e.dead)m.fn(g,e);
+  renderCombat();await sleep(380);
+ }
+ if((!cs||cs.over))return;
+ if(alive().length===0){checkWin();return}
+ // 回合结束结算
+ for(const e of alive()){if(e.st.metal)e.block+=e.st.metal;if(e.st.ritual){e.st.str=(e.st.str||0)+e.st.ritual}}
+ for(const ent of [p,...alive()])for(const k of ['vuln','weak','frail']){if(ent===p&&cs.fresh&&cs.fresh[k])continue;if(ent.st[k]){ent.st[k]--;if(!ent.st[k])delete ent.st[k]}}cs.fresh={};
+ for(const e of alive())e.intent=ENEMIES[e.id].ai(e,e.t++,g);
+ startPlayerTurn();
+}
+function calcBurn(c){return vals(c).m}
+function calcEnemyDmg(e,base){let d=(base+(e.st.str||0))*actDm();if(e.st.weak)d*=0.75;if(cs.p.st.vuln)d*=1.5;return Math.max(0,Math.floor(d))}
+function intentHTML(e){
+ const m=ENEMIES[e.id].moves[e.intent];if(!m)return '';
+ let s='',tip=`<div class="k">${esc(m.nm)}</div>`;
+ const icons={atk:'⚔️',def:'🛡️',buff:'⬆️',debuff:'💀',atkdef:'⚔️🛡️',atkdebuff:'⚔️💀',defdebuff:'🛡️💀',buffdef:'⬆️🛡️',flee:'💨'};
+ if(m.d){const d=calcEnemyDmg(e,m.d);s=`${icons[m.i]||'⚔️'} ${d}${m.x?'×'+m.x:''}`;tip+=`<div>将造成 ${d}${m.x?' × '+m.x:''} 点伤害</div>`}else s=icons[m.i]||'❓';
+ if(m.b)tip+=`<div>获得 ${m.b} 点格挡</div>`;
+ if(m.i.includes('buff')&&!m.i.includes('debuff')||m.i==='buffdef')tip+='<div>强化自身</div>';
+ if(m.i.includes('debuff'))tip+='<div>对你施加负面效果</div>';
+ if(m.i==='flee')tip+='<div>准备带着金币逃跑</div>';
+ return `<div class="intent ${m.d?'atk':''}" data-tip="intent:${encodeURIComponent(tip)}">${s}</div>`;
+}
+function statsHTML(ent){return Object.entries(ent.st).filter(([k,v])=>v&&STAT[k]&&k!=='steal').map(([k,v])=>`<span class="st ${STAT[k].bad?'bad':'good'}" data-tip="st:${k}:${v}">${STAT[k].i}${v}</span>`).join('')}
+function hpHTML(ent){const pz=ent.st.poison?Math.min(ent.hp,ent.st.poison):0;return `<div class="hpwrap ${ent.block?'hasblk':''}">${ent.block?`<div class="blk">${ent.block}</div>`:''}<div class="hpbar"><div class="f" style="width:${Math.max(0,ent.hp)/ent.maxHp*100}%"></div>${pz?`<div class="pz" style="left:${(ent.hp-pz)/ent.maxHp*100}%;width:${pz/ent.maxHp*100}%"></div>`:''}<div class="t">${Math.max(0,ent.hp)}/${ent.maxHp}</div></div></div>`}
+function fitHand(){const h=document.getElementById('hand');if(!h)return;const cs_=[...h.querySelectorAll('.card')];if(!cs_.length)return;
+ const w=cs_[0].offsetWidth,avail=h.clientWidth-20,n=cs_.length,def=innerWidth<=820?-16:-14;
+ let m=def;if(n>1&&n*w+2*(n-1)*def>avail)m=Math.floor((avail-n*w)/(2*(n-1)));m=Math.max(m,-w*0.42);cs_.forEach(el=>{el.style.marginLeft=el.style.marginRight=m+'px'})}
+addEventListener('resize',()=>{if(typeof cs!=='undefined'&&cs)fitHand()});
+function renderCombat(){
+ if(!cs)return;const p=cs.p;p.maxHp=run.maxHp;
+ const C=CHARS[run.char];
+ const enemies=cs.enemies.map(e=>{const D=ENEMIES[e.id];return `<div class="ent enemy ${D.big?'big':''} ${e.dead?'dead':''} ${cs.anim[e.uid]||''}" id="ent-${e.uid}" onclick="clickEnemy('${e.uid}')" data-eid="${e.id}">
+  ${e.dead?'':intentHTML(e)}<div class="sprite" data-tip="enemy:${e.id}">${D.sp}</div><div class="nm">${D.n}${D.elite?' ⭐':''}${D.boss?' 👑':''}</div><div class="een">${esc(enLabel('enemy',e.id))}</div>${hpHTML(e)}<div class="stats">${statsHTML(e)}</div></div>`}).join('');
+ const hand=cs.hand.map((c,i)=>{const can=playable(c);return cardHTML(c,{combat:true,cls:`${can?'':'unplay'} ${cs.sel===i?'sel':''}`,attr:`onclick="clickCard(${i})" data-hand="${i}"`})}).join('');
+ const n=cs.hand.length;
+ app().innerHTML=topbar()+`<div class="combat ${cs.sel!==null||cs.selPot!==null?'targeting':''}" oncontextmenu="cancelSel(event)">
+  ${cs.sel!==null||cs.selPot!==null?'<div class="hint">选择一个敌人作为目标（右键或 Esc 取消）</div>':''}
+  <div class="field"><div class="ent ${cs.anim.player||''}" id="ent-player"><div class="sprite">${C.sp}</div><div class="nm">${C.n}</div>${hpHTML(p)}<div class="stats">${statsHTML(p)}${cs.launches.map((l,i)=>`<span class="st good launch" data-tip="launch:${i}">${l.ic||'🚀'}T-${Math.max(0,l.t)}</span>`).join('')}</div></div>
+  <div class="enemies">${enemies}</div></div>${comboBarHTML()}
+  <div class="energy" title="能量">${cs.energy}/${3+(p.st.xen||0)}</div>
+  <div class="pile draw" onclick="showDeck('draw')" title="抽牌堆">🂠<b>${cs.draw.length}</b>抽牌</div>
+  <div class="pile disc" onclick="showDeck('discard')" title="弃牌堆">♻️<b>${cs.discard.length}</b>弃牌</div>
+  <div class="pile exh" onclick="showDeck('exhaust')" title="消耗堆">🔥 ${cs.exhaust.length}</div>
+  <button class="btn endturn" id="endturn" onclick="endTurn()" ${cs.busy?'disabled':''}>${cs.busy?'敌人回合…':'结束回合'}</button>
+  <div class="hand" id="hand">${hand}</div></div>`;
+ // 手牌扇形
+ document.querySelectorAll('#hand .card').forEach((el,i)=>{if(el.classList.contains('sel'))return;const off=i-(n-1)/2;el.style.transform=`rotate(${off*3}deg) translateY(${Math.abs(off)*off*0+Math.abs(off)*4}px)`;el.onmouseenter=()=>{el.style.transform='translateY(-24px) scale(1.1)'};el.onmouseleave=()=>{el.style.transform=`rotate(${off*3}deg) translateY(${Math.abs(off)*4}px)`}});
+ fitHand();
+ cs.anim={};
+}
+function cancelSel(ev){if(ev)ev.preventDefault();if(cs&&(cs.sel!==null||cs.selPot!==null)){cs.sel=null;cs.selPot=null;renderCombat()}}
+// 药水
+function clickPotion(i){
+ const id=run.potions[i];if(!id)return;const P=POTIONS[id];
+ const inC=cs&&!cs.over&&!cs.busy;
+ modal(`<h2>${P.i} ${P.n}</h2><div class="sub">${P.d}</div><div class="opts" style="width:300px">
+ ${inC||id==='heal'?`<button class="opt" id="pot-use" onclick="closeModal();potionUse(${i})">使用</button>`:'<div class="sub">只能在战斗中使用</div>'}
+ <button class="opt" onclick="run.potions[${i}]=null;closeModal();refresh()"><span class="r">丢弃</span></button><button class="opt" onclick="closeModal()">取消</button></div>`);
+}
+function potionUse(i){
+ const id=run.potions[i];const P=POTIONS[id];
+ if(!cs){if(id==='heal'){run.hp=Math.min(run.maxHp,run.hp+Math.floor(run.maxHp*.2));run.potions[i]=null;refresh()}return}
+ if(P.tg==='enemy'){const a=alive();if(a.length===1)return usePotion(i,a[0]);cs.selPot=i;cs.sel=null;renderCombat();return}
+ usePotion(i,null);
+}
+function usePotion(i,t){const id=run.potions[i];run.potions[i]=null;POTIONS[id].use(cs.g,t);renderCombat();checkWin()}
+function refresh(){if(cs)renderCombat();else if(run&&run.screen==='map')showMap();else refreshTop()}
+function addPotion(id){const i=run.potions.indexOf(null);if(i<0)return false;run.potions[i]=id;return true}
+document.addEventListener('keydown',e=>{
+ if(document.getElementById('modal')){if(e.key==='Escape')closeModal();return}
+ if(!cs)return;
+ if(e.key==='Escape')cancelSel();
+ else if(e.key==='e'||e.key==='E')endTurn();
+ else if(/^[0-9]$/.test(e.key)){const i=e.key==='0'?9:+e.key-1;clickCard(i)}
+});
+
+// ===== 战斗结束与奖励 =====
+function winCombat(){
+ run.hp=Math.max(1,cs.p.hp);
+ if(hasRelic('ember')){run.hp=Math.min(run.maxHp,run.hp+6)}
+ const kind=cs.kind;const rw=[];
+ let gold=kind==='m'?R(10,20):kind==='E'?R(25,35):R(95,105);if(hasRelic('ledger'))gold+=12;
+ rw.push({t:'gold',n:gold});
+ if(kind==='E'){run.stats.elites++;rw.push({t:'relic',id:randomRelic()})}
+ if(kind==='B')run.stats.bosses++;
+ if(Math.random()<(kind==='m'?0.4:0.6))rw.push({t:'potion',id:pick(Object.keys(POTIONS))});
+ rw.push({t:'cards',cards:cardChoices(kind)});
+ rw.push({t:'quiz',en:cs.enemies.map(e=>e.id)});
+ if(cs.bonusRelic)rw.push({t:'relic',id:randomRelic()});
+ if(kind==='B'&&run.act<3)rw.push({t:'bossrelic',ids:shuffle(Object.keys(RELICS).filter(k=>RELICS[k].r==='boss'&&!run.relics.includes(k))).slice(0,3)});
+ cs=null;
+ if(kind==='B'&&run.act===3){for(const r of rw)if(r.t==='gold')run.gold+=r.n;return endRun(true,'击败了十年期利率，登顶算力尖塔')}
+ run.rewards=rw;showRewards();
+}
+function cardChoices(kind){
+ const pool=Object.values(CARDS).filter(c=>c.c===run.char&&['common','uncommon','rare'].includes(c.r));
+ const out=[];let guard=0;
+ while(out.length<3&&guard++<100){
+  const x=Math.random();const rar=kind==='B'?'rare':kind==='E'?(x<.12?'rare':x<.5?'uncommon':'common'):(x<.06?'rare':x<.4?'uncommon':'common');
+  const opts=pool.filter(c=>c.r===rar&&!out.some(o=>o.id===c.id));if(!opts.length)continue;
+  const c=pick(opts);out.push(newCard(c.id,Math.random()<(run.act-1)*0.12));
+ }
+ return out;
+}
+function randomRelic(){
+ const opts=Object.keys(RELICS).filter(k=>['common','uncommon','rare'].includes(RELICS[k].r)&&!run.relics.includes(k));
+ return opts.length?pick(opts):null;
+}
+function gainRelic(id){if(!id||run.relics.includes(id))return;run.relics.push(id);const R=RELICS[id];if(R.onGet)R.onGet(run)}
+function showRewards(){
+ document.querySelectorAll('.turnbanner,.floater').forEach(e=>e.remove());
+ const rw=run.rewards;
+ const items=rw.map((r,i)=>{
+  if(r.t==='gold')return `<div class="rw" id="rw-${i}" onclick="takeRw(${i})"><span class="ic">🪙</span>${r.n} 金币</div>`;
+  if(r.t==='potion')return `<div class="rw" id="rw-${i}" onclick="takeRw(${i})" data-tip="potion:${r.id}"><span class="ic">${POTIONS[r.id].i}</span>${POTIONS[r.id].n}</div>`;
+  if(r.t==='relic'&&r.id)return `<div class="rw" id="rw-${i}" onclick="takeRw(${i})" data-tip="relic:${r.id}"><span class="ic">${RELICS[r.id].i}</span>遗物：${RELICS[r.id].n}</div>`;
+  if(r.t==='cards')return `<div class="rw" id="rw-${i}" onclick="takeRw(${i})"><span class="ic">🂠</span>选择一张卡牌加入牌组</div>`;
+  if(r.t==='quiz')return `<div class="rw quizrw" id="rw-${i}" data-quiz="1" onclick="takeRw(${i})"><span class="ic">📝</span>英语小测（可选，3 题：每题 +10 金币，全对再升级 1 张牌）</div>`;
+  if(r.t==='bossrelic')return `<div class="rw" id="rw-${i}" onclick="takeRw(${i})"><span class="ic">👑</span>选择一件 Boss 遗物</div>`;
+  return '';}).join('');
+ app().innerHTML=topbar()+`<div class="screen"><div class="center"><h2>🏆 战斗胜利</h2><div class="panel rewards">${items||'<div class="sub">奖励已全部领取</div>'}</div>
+ <button class="btn" id="rw-continue" onclick="afterRewards()">${rw.length?'跳过剩余奖励并继续':'继续'}</button></div></div>`;
+}
+function takeRw(i){
+ const r=run.rewards[i];
+ if(r.t==='gold'){run.gold+=r.n;run.stats.gold+=r.n}
+ else if(r.t==='potion'){if(!addPotion(r.id)){shakeMsg('药水栏已满（可先丢弃一瓶）');return}}
+ else if(r.t==='relic')gainRelic(r.id);
+ else if(r.t==='quiz'){run.rewards.splice(i,1);QZ_EN=r.en||[];startQuiz(()=>showRewards());return}
+ else if(r.t==='cards'){
+  modal(`<h2>选择一张卡牌</h2><div class="cardgrid">${r.cards.map((c,j)=>cardHTML(c,{attr:`onclick="chooseRwCard(${i},${j})" data-choice="${j}"`})).join('')}</div><button class="btn" id="skip-card" onclick="closeModal()">跳过</button>`);return}
+ else if(r.t==='bossrelic'){
+  modal(`<h2>选择一件 Boss 遗物</h2><div style="display:flex;gap:30px">${r.ids.map(id=>`<div class="shopitem"><div class="bigrelic" data-tip="relic:${id}" onclick="chooseBossRelic(${i},'${id}')">${RELICS[id].i}</div><div>${RELICS[id].n}</div><div class="sub" style="max-width:180px">${RELICS[id].d}</div></div>`).join('')}</div><button class="btn" onclick="closeModal()">稍后</button>`);return}
+ run.rewards.splice(i,1);showRewards();
+}
+function chooseRwCard(i,j){const r=run.rewards[i];run.deck.push(newCard(r.cards[j].id,r.cards[j].up));run.rewards.splice(i,1);closeModal();showRewards()}
+function chooseBossRelic(i,id){gainRelic(id);run.rewards.splice(i,1);closeModal();showRewards()}
+function afterRewards(){
+ run.rewards=null;
+ if(run.pos&&run.pos.r===ROWS){// boss 结束，进入下一幕
+  run.act++;run.map=genMap();run.pos=null;run.visited=[];const heal=Math.ceil((run.maxHp-run.hp)*0.75);run.hp+=heal;
+  showMap();banner(`第 ${run.act} 幕 · 回复 ${heal} 生命`);return}
+ showMap();
+}
+function endRun(win,why){
+ cs=null;clearSave();const s=run.stats;const mins=Math.round((Date.now()-s.start)/60000);
+ app().innerHTML=`<div class="screen full"><div class="center"><div style="font-size:80px">${win?'👑':'💀'}</div><div class="title" style="font-size:48px">${win?'登顶！':'旅程终结'}</div>
+ <div class="sub">${CHARS[run.char].n} ${esc(why)}</div>
+ <div class="panel"><table class="summary"><tr><td>到达</td><td>第 ${run.act} 幕 · 共走过 ${s.floors} 层</td></tr><tr><td>击败敌人</td><td>${s.kills}（精英 ${s.elites}，Boss ${s.bosses}）</td></tr>
+ <tr><td>造成伤害</td><td>${s.dmg}</td></tr><tr><td>打出卡牌</td><td>${s.cards}</td></tr><tr><td>获得金币</td><td>${s.gold}</td></tr><tr><td>最终牌组</td><td>${run.deck.length} 张</td></tr>
+ <tr><td>遗物</td><td>${run.relics.map(r=>RELICS[r].i).join(' ')}</td></tr><tr><td>用时</td><td>${mins} 分钟</td></tr>
+ <tr><td>得分</td><td><b style="color:var(--gold)">${s.floors*5+s.kills*10+s.elites*25+s.bosses*100+(win?500:0)}</b></td></tr></table></div>
+ <div style="display:flex;gap:12px"><button class="btn" id="btn-restart" onclick="showCharSelect()">⚔ 新的旅程</button><button class="btn small" onclick="showTitle()">返回标题</button></div></div></div>`;
+}
+
+// ===== 休息点 =====
+function showRest(){
+ const heal=Math.floor(run.maxHp*0.35);
+ app().innerHTML=topbar()+`<div class="screen"><div class="center"><div style="font-size:90px">🔥</div><h2>休息点</h2><div class="sub">机房的冷却塔在夜色中轰鸣。你可以休整，或者打磨一张牌。</div>
+ <div style="display:flex;gap:20px;flex-wrap:wrap;justify-content:center">
+ <button class="btn" id="rest-heal" onclick="restHeal()">💤 休息：回复 ${heal} 生命</button>
+ <button class="btn blue" id="rest-up" onclick="restUpgrade()">🔧 调优：升级一张牌</button></div></div></div>`;
+}
+function restHeal(){run.hp=Math.min(run.maxHp,run.hp+Math.floor(run.maxHp*0.35));showMap()}
+function restUpgrade(){const list=run.deck.filter(canUp);pickCard(list,'选择要升级的牌（悬停可预览升级效果）',c=>{c.up=true;showMap()},true)}
+
+// ===== 宝箱 =====
+function showTreasure(){
+ const id=randomRelic(),g=R(25,50);
+ app().innerHTML=topbar()+`<div class="screen"><div class="center"><div style="font-size:90px" id="chest">🎁</div><h2>宝箱</h2>
+ <div class="panel rewards"><div class="rw" id="chest-open" onclick="openChest('${id}',${g})"><span class="ic">🗝️</span>打开宝箱</div></div></div></div>`;
+}
+function openChest(id,g){if(id&&id!=='null')gainRelic(id);run.gold+=g;run.stats.gold+=g;
+ app().innerHTML=topbar()+`<div class="screen"><div class="center"><div style="font-size:90px">✨</div><h2>宝箱打开了</h2>
+ ${id&&id!=='null'?`<div class="shopitem"><div class="bigrelic" data-tip="relic:${id}">${RELICS[id].i}</div><div><b>${RELICS[id].n}</b></div><div class="sub">${RELICS[id].d}</div>${RELICS[id].fl?`<div class="factbox">${RELICS[id].fl}</div>`:''}</div>`:''}
+ <div class="sub">+${g} 金币</div><button class="btn" id="chest-continue" onclick="showMap()">继续</button></div></div>`}
+
+// ===== 商店 =====
+function showShop(){
+ const pool=Object.values(CARDS).filter(c=>c.c===run.char&&['common','uncommon','rare'].includes(c.r));
+ const cards=shuffle([...pool]).slice(0,6).map(d=>({card:newCard(d.id),price:Math.round({common:50,uncommon:75,rare:150}[d.r]*(0.9+Math.random()*0.2))}));
+ const sale=R(0,5);cards[sale].price=Math.floor(cards[sale].price/2);cards[sale].sale=1;
+ const relics=shuffle(Object.keys(RELICS).filter(k=>['common','uncommon','rare'].includes(RELICS[k].r)&&!run.relics.includes(k))).slice(0,3).map(id=>({id,price:{common:150,uncommon:220,rare:290}[RELICS[id].r]+R(-15,15)}));
+ const pots=shuffle(Object.keys(POTIONS)).slice(0,3).map(id=>({id,price:R(48,72)}));
+ run.shop={cards,relics,pots,removed:false};renderShop();
+}
+function renderShop(){
+ const S=run.shop;const pr=(p)=>`<div class="price ${run.gold<p?'no':''}">🪙 ${p}</div>`;
+ app().innerHTML=topbar()+`<div class="screen"><div class="center" style="justify-content:flex-start"><h2>🛒 二手算力集市</h2><div class="sub">「HBM 卖光了？我这儿总有货——价钱另说。」</div>
+ <div class="shopgrid">${S.cards.map((x,i)=>`<div class="shopitem ${x.sold?'sold':''}">${cardHTML(x.card,{attr:`onclick="buyCard(${i})" data-shop-card="${i}"`})}${pr(x.price)}${x.sale?'<div style="color:#7d7;font-size:12px">半价！</div>':''}</div>`).join('')}</div>
+ <div class="shopgrid" style="margin-top:10px">
+ ${S.relics.map((x,i)=>`<div class="shopitem ${x.sold?'sold':''}"><div class="bigrelic" data-tip="relic:${x.id}" onclick="buyRelic(${i})">${RELICS[x.id].i}</div><div style="font-size:13px">${RELICS[x.id].n}</div>${pr(x.price)}</div>`).join('')}
+ ${S.pots.map((x,i)=>`<div class="shopitem ${x.sold?'sold':''}"><div class="bigrelic" style="border-radius:16px" data-tip="potion:${x.id}" onclick="buyPot(${i})">${POTIONS[x.id].i}</div><div style="font-size:13px">${POTIONS[x.id].n}</div>${pr(x.price)}</div>`).join('')}
+ <div class="shopitem ${S.removed?'sold':''}"><div class="bigrelic" style="background:radial-gradient(#603030,#1d1010)" onclick="shopRemove()" id="shop-remove">🗑️</div><div style="font-size:13px">移除一张牌</div>${pr(run.removeCost)}</div></div>
+ <button class="btn" id="shop-leave" onclick="run.shop=null;showMap()">离开商店</button></div></div>`;
+}
+function buyCard(i){const x=run.shop.cards[i];if(x.sold||run.gold<x.price)return shakeMsg('金币不足');run.gold-=x.price;run.deck.push(newCard(x.card.id,x.card.up));x.sold=1;renderShop()}
+function buyRelic(i){const x=run.shop.relics[i];if(x.sold||run.gold<x.price)return shakeMsg('金币不足');run.gold-=x.price;gainRelic(x.id);x.sold=1;renderShop()}
+function buyPot(i){const x=run.shop.pots[i];if(x.sold||run.gold<x.price)return shakeMsg('金币不足');if(!addPotion(x.id))return shakeMsg('药水栏已满');run.gold-=x.price;x.sold=1;renderShop()}
+function shopRemove(){if(run.shop.removed)return;if(run.gold<run.removeCost)return shakeMsg('金币不足');
+ pickCard(run.deck,'选择要移除的牌',c=>{run.gold-=run.removeCost;run.removeCost+=25;run.deck.splice(run.deck.indexOf(c),1);run.shop.removed=true;renderShop()},true);window.__pickCancel=renderShop}
+
+// ===== 事件 =====
+function randomCardOf(rar){const pool=Object.values(CARDS).filter(c=>c.c===run.char&&(rar?c.r===rar:['common','uncommon','rare'].includes(c.r)));return newCard(pick(pool).id)}
+function upgradeRandom(n){const l=shuffle(run.deck.filter(canUp)).slice(0,n);l.forEach(c=>c.up=true);return l.map(cname).join('、')||'无'}
+const EVENTS=[
+ {id:'grid',n:'变电站排队',pic:'🏗️',src:['colpower'],txt:'你的新机房已经封顶，但电网告诉你：并网要排队。隔壁的工程师说，Colossus 早期在并网之前，靠十几台 2.5 MW 的燃气发电机先把机器跑了起来（报道）。',
+  opts:[{t:'租燃气轮机',d:'失去 8 生命，获得遗物「2.5MW 燃气轮机」',fn:()=>{run.hp-=8;if(run.relics.includes('turbine')){run.gold+=50;return '你已有轮机，改为转租，获得 50 金币。'}gainRelic('turbine');return '轰鸣声中，机柜亮起了绿灯。'}},
+   {t:'买储能电池',d:'花 60 金币，最大生命 +6',ok:()=>run.gold>=60,fn:()=>{run.gold-=60;run.maxHp+=6;run.hp+=6;return '电池组像一面墙一样立在机房旁边。'}},
+   {t:'耐心排队',d:'回复 10 生命',fn:()=>{run.hp=Math.min(run.maxHp,run.hp+10);return '你趁排队的时间睡了个好觉。'}}]},
+ {id:'hbm',n:'HBM 抢购会',pic:'🗄️',txt:'内存原厂的销售摊开手：「明年的 HBM 产能基本都被长期协议锁定了。」角落里一个现货贩子朝你招手。',
+  opts:[{t:'签长期协议',d:'花 45 金币，获得一张随机稀有牌',ok:()=>run.gold>=45,fn:()=>{run.gold-=45;const c=randomCardOf('rare');run.deck.push(c);return '获得「'+cname(c)+'」。'}},
+   {t:'现货抢购',d:'失去 6 生命，获得一张随机罕见牌',fn:()=>{run.hp-=6;const c=randomCardOf('uncommon');run.deck.push(c);return '你挤出人群，抢到了「'+cname(c)+'」。'}},
+   {t:'离开',d:'什么也不做',fn:()=>'你决定等下一个周期。'}]},
+ {id:'laser',n:'激光器短缺',pic:'🔦',src:['optics','laser'],txt:'1.6T 光模块（8 × 200G）正在放量，CW 与 EML 激光器成了瓶颈。供应商说：加钱可以插队。',
+  opts:[{t:'加价锁单',d:'花 50 金币，随机升级 2 张牌',ok:()=>run.gold>=50,fn:()=>{run.gold-=50;return '升级了：'+upgradeRandom(2)}},
+   {t:'改用替代方案',d:'选择一张牌，将其替换为随机一张牌',fn:()=>'__transform'},
+   {t:'离开',d:'',fn:()=>'你把订单推迟到下个季度。'}]},
+ {id:'mine',n:'废弃的矿场机房',pic:'🏚️',txt:'一座废弃的加密矿场，机架上还插着几张旧卡。墙上潦草地写着：「先上线，再还债。」',
+  opts:[{t:'搜刮',d:'获得一件随机遗物，并获得诅咒「技术债」',fn:()=>{const id=randomRelic();gainRelic(id);run.deck.push(newCard('debt'));return id?'找到了「'+RELICS[id].n+'」，但也背上了技术债。':'空无一物，只留下技术债。'}},
+   {t:'拆卖设备',d:'获得 75 金币',fn:()=>{run.gold+=75;run.stats.gold+=75;return '二手显卡依然抢手。'}},
+   {t:'离开',d:'',fn:()=>'你没有碰任何东西。'}]},
+ {id:'rocket',n:'火箭发射窗口',pic:'🚀',src:['neutron','neutron27','electron','electron98'],txt:'Neutron（LEO 13,000 kg）的首飞已被 Rocket Lab 推迟到 2027 年；旁边的 Electron 只能带 300 kg，但 2026 年 10 月刚完成第 98 次发射。',
+  opts:[{t:'押注首飞',d:'30%：获得 150 金币；70%：继续推迟，失去 6 生命',fn:()=>{if(Math.random()<.3){run.gold+=150;run.stats.gold+=150;return '这次居然没推迟！你赚到了 150 金币。'}run.hp-=6;return '首飞再次推迟，你在发射场白等一场，失去 6 生命。'}},
+   {t:'订一个 Electron 整流罩',d:'花 80 金币，获得遗物「Electron 整流罩」（药水栏 +1）',ok:()=>run.gold>=80&&!run.relics.includes('electron'),fn:()=>{run.gold-=80;gainRelic('electron');return '小而稳定，也是一种答案。'}},
+   {t:'离开',d:'',fn:()=>'你转身回到地面。'}]},
+ {id:'gtc',n:'开发者大会',pic:'🎤',txt:'台上的主讲人举起一块新的超级芯片，台下闪光灯一片。你可以听主题演讲、参加动手实验课，或者去展台转转。',
+  opts:[{t:'听主题演讲',d:'升级一张牌',fn:()=>'__upgrade'},{t:'参加实验课',d:'移除一张牌',fn:()=>'__remove'},
+   {t:'逛展台',d:'获得一瓶随机药水',fn:()=>{const p=pick(Object.keys(POTIONS));return addPotion(p)?'领到了「'+POTIONS[p].n+'」。':'药水栏满了，你空手而归。'}}]},
+ {id:'spring',n:'冷却塔之泉',pic:'⛲',txt:'冷却塔下有一汪清水，整座液冷机房的热量最终都流到这里。传说饮下它能治愈一切，但会让人背上维护债务。',
+  opts:[{t:'畅饮',d:'回复全部生命，获得诅咒「技术债」',fn:()=>{run.hp=run.maxHp;run.deck.push(newCard('debt'));return '你感到焕然一新。'}},
+   {t:'洗把脸',d:'回复 25% 生命',fn:()=>{run.hp=Math.min(run.maxHp,run.hp+Math.floor(run.maxHp*.25));return '清凉。'}},
+   {t:'离开',d:'',fn:()=>'你没有停留。'}]},
+ {id:'arena',n:'算力跑分擂台',pic:'🏆',txt:'一群工程师围着一台机柜比拼跑分。擂主是个看起来很不好惹的家伙。',
+  opts:[{t:'上台挑战',d:'与精英战斗，胜利后额外获得一件遗物',fn:()=>'__fight'},{t:'下注观战',d:'获得 30 金币',fn:()=>{run.gold+=30;run.stats.gold+=30;return '你押对了。'}}]},
+ {id:'shrine',n:'电网神龛',pic:'⛩️',src:['meta','hyperion'],txt:'一座供奉「千兆瓦」的神龛。碑文写着：Prometheus 1 GW，Hyperion 5 GW。献上血肉，可换来力量。',
+  opts:[{t:'献祭',d:'失去 5 最大生命，获得一件随机遗物',fn:()=>{run.maxHp-=5;run.hp=Math.min(run.hp,run.maxHp);const id=randomRelic();gainRelic(id);return id?'获得「'+RELICS[id].n+'」。':'神龛沉默了。'}},
+   {t:'净化',d:'花 40 金币，移除一张诅咒（若有）',ok:()=>run.gold>=40&&run.deck.some(c=>CARDS[c.id].t==='curse'),fn:()=>{run.gold-=40;const i=run.deck.findIndex(c=>CARDS[c.id].t==='curse');run.deck.splice(i,1);return '技术债被一笔勾销。'}},
+   {t:'离开',d:'',fn:()=>'你双手合十，然后离开。'}]},
+].concat(MKT_EVENTS);
+function showEvent(){
+ let pool=EVENTS.filter(e=>!run.seenEvents.includes(e.id));if(!pool.length){run.seenEvents=[];pool=EVENTS}
+ const mk=pool.filter(e=>e.mk);const ev=(mk.length&&Math.random()<.5)?pick(mk):pick(pool);run.seenEvents.push(ev.id);run.curEvent=ev.id;renderEvent(ev);
+}
+function renderEvent(ev,result){
+ app().innerHTML=topbar()+`<div class="screen"><div class="center"><div class="panel event"><div class="pic">${ev.pic}</div>${ev.mk?'<div class="mktag">📈 真实市场事件</div>':''}<h2>${ev.n}</h2><p>${ev.txt}</p>${ev.mech?`<div class="mech">🔁 <b>传导机制</b>：${ev.mech}<br><span style="color:#d9a35a;font-size:12px">教育用途，非投资建议。</span></div>`:''}
+ ${ev.src?`<div class="factbox">📚 ${ev.src.map(s=>`<a href="${SRC[s].u}" target="_blank" style="color:#8fc8ff">${esc(SRC[s].t)}</a>`).join('<br>')}</div>`:''}
+ ${result?`<p style="color:var(--gold)">${esc(result)}</p><div class="opts"><button class="opt" id="ev-continue" onclick="showMap()">继续</button></div>`:
+ `<div class="opts">${ev.opts.map((o,i)=>`<button class="opt" data-ev="${i}" onclick="chooseEvent(${i})" ${o.ok&&!o.ok()?'disabled':''}><b>【${o.t}】</b> ${o.d}</button>`).join('')}</div>`}</div></div></div>`;
+}
+function chooseEvent(i){
+ const ev=EVENTS.find(e=>e.id===run.curEvent);const res=ev.opts[i].fn();
+ if(run.hp<=0){run.hp=0;return endRun(false,'在事件「'+ev.n+'」中倒下')}
+ if(res==='__upgrade'){const l=run.deck.filter(canUp);if(!l.length)return renderEvent(ev,'没有可升级的牌。');return pickCard(l,'选择要升级的牌',c=>{c.up=true;renderEvent(ev,'升级了「'+cname(c)+'」。')},false)}
+ if(res==='__remove')return pickCard(run.deck,'选择要移除的牌',c=>{run.deck.splice(run.deck.indexOf(c),1);renderEvent(ev,'移除了「'+cname(c)+'」。')},false);
+ if(res==='__transform')return pickCard(run.deck,'选择要替换的牌',c=>{run.deck.splice(run.deck.indexOf(c),1);const n=randomCardOf();run.deck.push(n);renderEvent(ev,'「'+cname(c)+'」变成了「'+cname(n)+'」。')},false);
+ if(res==='__fight'){startCombat(pick(ENCOUNTERS[run.act].elite),'E');cs.bonusRelic=1;return}
+ renderEvent(ev,res);
+}
+// ===== 启动 =====
+window.addEventListener('error',e=>{console.error('JSERR',e.message)});
+showTitle();
+</script></body></html>
